@@ -5,6 +5,7 @@ import android.content.Context
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
+import io.flutter.plugin.common.PluginRegistry
 
 /**
  * Flutter plugin for unified permission handling.
@@ -14,7 +15,8 @@ import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
  * - App role management (SMS, Dialer)
  * - Battery optimization exemption
  */
-class SimplePermissionsPlugin : FlutterPlugin, ActivityAware {
+class SimplePermissionsPlugin : FlutterPlugin, ActivityAware,
+    PluginRegistry.RequestPermissionsResultListener {
 
     private lateinit var applicationContext: Context
     private var activity: Activity? = null
@@ -41,10 +43,12 @@ class SimplePermissionsPlugin : FlutterPlugin, ActivityAware {
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         activity = binding.activity
         activityBinding = binding
+        binding.addRequestPermissionsResultListener(this)
         permissionsHostApiImpl?.onAttachedToActivity(binding)
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
+        activityBinding?.removeRequestPermissionsResultListener(this)
         permissionsHostApiImpl?.onDetachedFromActivity()
         activityBinding = null
         activity = null
@@ -55,8 +59,23 @@ class SimplePermissionsPlugin : FlutterPlugin, ActivityAware {
     }
 
     override fun onDetachedFromActivity() {
+        activityBinding?.removeRequestPermissionsResultListener(this)
         permissionsHostApiImpl?.onDetachedFromActivity()
         activityBinding = null
         activity = null
+    }
+
+    // =========================================================================
+    // RequestPermissionsResultListener
+    // =========================================================================
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ): Boolean {
+        return permissionsHostApiImpl?.onRequestPermissionsResult(
+            requestCode, permissions, grantResults
+        ) ?: false
     }
 }
