@@ -1,29 +1,34 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simple_permissions/simple_permissions.dart';
-import 'package:simple_permissions/simple_permissions_platform_interface.dart';
-import 'package:simple_permissions/simple_permissions_method_channel.dart';
-import 'package:plugin_platform_interface/plugin_platform_interface.dart';
-
-class MockSimplePermissionsPlatform
-    with MockPlatformInterfaceMixin
-    implements SimplePermissionsPlatform {
-
-  @override
-  Future<String?> getPlatformVersion() => Future.value('42');
-}
 
 void main() {
-  final SimplePermissionsPlatform initialPlatform = SimplePermissionsPlatform.instance;
+  TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('$MethodChannelSimplePermissions is the default instance', () {
-    expect(initialPlatform, isInstanceOf<MethodChannelSimplePermissions>());
-  });
+  group('SimplePermissions', () {
+    test('instance returns singleton', () {
+      final a = SimplePermissions.instance;
+      final b = SimplePermissions.instance;
+      expect(identical(a, b), isTrue);
+    });
 
-  test('getPlatformVersion', () async {
-    SimplePermissions simplePermissionsPlugin = SimplePermissions();
-    MockSimplePermissionsPlatform fakePlatform = MockSimplePermissionsPlatform();
-    SimplePermissionsPlatform.instance = fakePlatform;
+    test('Intention.texting has SMS role', () {
+      expect(Intention.texting.role, 'android.app.role.SMS');
+    });
 
-    expect(await simplePermissionsPlugin.getPlatformVersion(), '42');
+    test('Intention.calling has DIALER role', () {
+      expect(Intention.calling.role, 'android.app.role.DIALER');
+    });
+
+    test('Intention.notifications has no role', () {
+      expect(Intention.notifications.role, isNull);
+    });
+
+    test('Intention.texting has expected permissions', () {
+      final perms = Intention.texting.permissions;
+      expect(perms, contains('android.permission.SEND_SMS'));
+      expect(perms, contains('android.permission.READ_SMS'));
+      expect(perms, contains('android.permission.RECEIVE_SMS'));
+      expect(perms, contains('android.permission.RECEIVE_MMS'));
+    });
   });
 }

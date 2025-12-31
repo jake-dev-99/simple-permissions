@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 
-import 'package:flutter/services.dart';
 import 'package:simple_permissions/simple_permissions.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await SimplePermissions.initialize();
   runApp(const MyApp());
 }
 
@@ -16,34 +17,28 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  String _platformVersion = 'Unknown';
-  final _simplePermissionsPlugin = SimplePermissions();
+  Map<String, bool>? _permissions;
+  bool? _smsRole;
 
   @override
   void initState() {
     super.initState();
-    initPlatformState();
+    _checkPermissions();
   }
 
-  // Platform messages are asynchronous, so we initialize in an async method.
-  Future<void> initPlatformState() async {
-    String platformVersion;
-    // Platform messages may fail, so we use a try/catch PlatformException.
-    // We also handle the message potentially returning null.
-    try {
-      platformVersion =
-          await _simplePermissionsPlugin.getPlatformVersion() ?? 'Unknown platform version';
-    } on PlatformException {
-      platformVersion = 'Failed to get platform version.';
-    }
+  Future<void> _checkPermissions() async {
+    final perms = await SimplePermissions.instance.checkPermissions(
+      Intention.texting.permissions,
+    );
+    final role = await SimplePermissions.instance.isRoleHeld(
+      Intention.texting.role!,
+    );
 
-    // If the widget was removed from the tree while the asynchronous platform
-    // message was in flight, we want to discard the reply rather than calling
-    // setState to update our non-existent appearance.
     if (!mounted) return;
 
     setState(() {
-      _platformVersion = platformVersion;
+      _permissions = perms;
+      _smsRole = role;
     });
   }
 
@@ -52,10 +47,31 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(
-          title: const Text('Plugin example app'),
+          title: const Text('Simple Permissions Example'),
         ),
-        body: Center(
-          child: Text('Running on: $_platformVersion\n'),
+        body: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('SMS Role: ${_smsRole ?? "checking..."}'),
+              const SizedBox(height: 16),
+              const Text('Permissions:'),
+              if (_permissions != null)
+                ..._permissions!.entries.map((e) => Text(
+                      '  ${e.key.split('.').last}: ${e.value}',
+                    )),
+            ],
+          ),
+        ),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () async {
+            await SimplePermissions.instance.requestPermissions(
+              Intention.texting.permissions,
+            );
+            await _checkPermissions();
+          },
+          child: const Icon(Icons.refresh),
         ),
       ),
     );
