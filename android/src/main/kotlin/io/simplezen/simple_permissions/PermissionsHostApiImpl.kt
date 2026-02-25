@@ -10,8 +10,6 @@ import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
-import androidx.activity.result.ActivityResultLauncher
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -49,6 +47,7 @@ class PermissionsHostApiImpl(
     private var pendingRoleCallback: ((Result<Boolean>) -> Unit)? = null
     private var pendingBatteryCallback: ((Result<Boolean>) -> Unit)? = null
     private var pendingPermissions: Array<String>? = null
+    private var pendingPermissionResult: MutableMap<String, Boolean>? = null
     private var pendingRole: String? = null
 
     fun onAttachedToActivity(binding: ActivityPluginBinding) {
@@ -69,6 +68,7 @@ class PermissionsHostApiImpl(
         pendingRoleCallback = null
         pendingBatteryCallback = null
         pendingPermissions = null
+        pendingPermissionResult = null
         pendingRole = null
     }
 
@@ -78,7 +78,7 @@ class PermissionsHostApiImpl(
 
     override fun checkPermissions(permissions: List<String>): Map<String, Boolean> {
         return permissions.associateWith { permission ->
-            ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+            isPermissionGrantedOrNotRequired(permission)
         }
     }
 
@@ -86,6 +86,19 @@ class PermissionsHostApiImpl(
         permissions: List<String>,
         callback: (Result<Map<String, Boolean>>) -> Unit
     ) {
+        if (pendingPermissionsCallback != null) {
+            callback(
+                Result.failure(
+                    FlutterError(
+                        "request-in-progress",
+                        "A permissions request is already in progress.",
+                        "requestPermissions"
+                    )
+                )
+            )
+            return
+        }
+
         val activity = activityProvider()
         if (activity == null) {
             Log.w(TAG, "requestPermissions called without attached activity")
@@ -105,9 +118,19 @@ class PermissionsHostApiImpl(
             return
         }
 
+        val permissionsToRequest = permissions.filter { permission ->
+            isPermissionApplicable(permission) && currentStatus[permission] != true
+        }
+
+        if (permissionsToRequest.isEmpty()) {
+            callback(Result.success(currentStatus))
+            return
+        }
+
         // Store callback and request permissions
         pendingPermissionsCallback = callback
-        pendingPermissions = permissions.toTypedArray()
+        pendingPermissions = permissionsToRequest.toTypedArray()
+        pendingPermissionResult = currentStatus.toMutableMap()
 
         ActivityCompat.requestPermissions(
             activity,
@@ -126,6 +149,19 @@ class PermissionsHostApiImpl(
     }
 
     override fun requestRole(roleId: String, callback: (Result<Boolean>) -> Unit) {
+        if (pendingRoleCallback != null) {
+            callback(
+                Result.failure(
+                    FlutterError(
+                        "request-in-progress",
+                        "A role request is already in progress.",
+                        "requestRole"
+                    )
+                )
+            )
+            return
+        }
+
         val activity = activityProvider()
         if (activity == null) {
             Log.w(TAG, "requestRole called without attached activity")
@@ -159,6 +195,19 @@ class PermissionsHostApiImpl(
     }
 
     override fun requestIgnoreBatteryOptimizations(callback: (Result<Boolean>) -> Unit) {
+        if (pendingBatteryCallback != null) {
+            callback(
+                Result.failure(
+                    FlutterError(
+                        "request-in-progress",
+                        "A battery optimization request is already in progress.",
+                        "requestIgnoreBatteryOptimizations"
+                    )
+                )
+            )
+            return
+        }
+
         val activity = activityProvider()
         if (activity == null) {
             Log.w(TAG, "requestIgnoreBatteryOptimizations called without attached activity")
@@ -178,6 +227,29 @@ class PermissionsHostApiImpl(
             data = Uri.parse("package:${context.packageName}")
         }
         activity.startActivityForResult(intent, REQUEST_CODE_BATTERY)
+    }
+
+    override fun shouldShowRequestPermissionRationale(
+        permissions: List<String>
+    ): Map<String, Boolean> {
+        val activity = activityProvider() ?: return permissions.associateWith { false }
+        return permissions.associateWith { permission ->
+            ActivityCompat.shouldShowRequestPermissionRationale(activity, permission)
+        }
+    }
+
+    override fun openAppSettings(): Boolean {
+        return try {
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.parse("package:${context.packageName}")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to open app settings", e)
+            false
+        }
     }
 
     // =========================================================================
@@ -210,14 +282,35 @@ class PermissionsHostApiImpl(
         if (requestCode != REQUEST_CODE_PERMISSIONS) return false
 
         val callback = pendingPermissionsCallback ?: return false
-        val result = permissions.zip(grantResults.toList()).associate { (perm, grant) ->
-            perm to (grant == PackageManager.PERMISSION_GRANTED)
+        val result = (pendingPermissionResult ?: mutableMapOf()).toMutableMap()
+        permissions.zip(grantResults.toList()).forEach { (perm, grant) ->
+            result[perm] = grant == PackageManager.PERMISSION_GRANTED
         }
 
         callback(Result.success(result))
         pendingPermissionsCallback = null
         pendingPermissions = null
+        pendingPermissionResult = null
         return true
+    }
+
+    private fun isPermissionGrantedOrNotRequired(permission: String): Boolean {
+        if (!isPermissionApplicable(permission)) return true
+        return ContextCompat.checkSelfPermission(context, permission) ==
+            PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun isPermissionApplicable(permission: String): Boolean {
+        return when (permission) {
+            "android.permission.READ_EXTERNAL_STORAGE" ->
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+            "android.permission.READ_MEDIA_IMAGES",
+            "android.permission.READ_MEDIA_VIDEO",
+            "android.permission.READ_MEDIA_AUDIO",
+            "android.permission.POST_NOTIFICATIONS" ->
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+            else -> true
+        }
     }
 
     private fun handleRoleResult() {

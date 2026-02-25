@@ -60,4 +60,16 @@ abstract class PermissionsHostApi {
   /// Shows system dialog explaining the request. Returns true if granted.
   @async
   bool requestIgnoreBatteryOptimizations();
+
+  /// Checks Android rationale visibility for each permission.
+  ///
+  /// Returns permission -> shouldShowRationale.
+  Map<String, bool> shouldShowRequestPermissionRationale(
+    List<String> permissions,
+  );
+
+  /// Opens this app's system settings page.
+  ///
+  /// Returns true if the intent was started successfully.
+  bool openAppSettings();
 }

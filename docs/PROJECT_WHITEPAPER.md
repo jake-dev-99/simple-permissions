@@ -43,6 +43,7 @@
 ### Current Project State
 
 The Dart/Flutter layer is architecturally complete with:
+
 - ✅ Public API design (`SimplePermissions` class)
 - ✅ Platform interface abstraction (`SimplePermissionsPlatform`)
 - ✅ Method channel scaffold (`MethodChannelSimplePermissions`)
@@ -60,7 +61,7 @@ The Dart/Flutter layer is architecturally complete with:
 Android's permission system has evolved significantly across versions, creating substantial complexity for developers:
 
 | Android Version | Permission Changes |
-|-----------------|-------------------|
+| ----------------- | ------------------- |
 | 6.0 (M) | Runtime permissions introduced |
 | 8.0 (O) | Permission groups behavior changes |
 | 10 (Q) | Role API introduced for default apps |
@@ -74,9 +75,10 @@ Android's permission system has evolved significantly across versions, creating 
 1. **Permission String Fragmentation**: Developers must know exact permission strings (e.g., `android.permission.SEND_SMS`) which vary in format and are error-prone
 
 2. **Permission Grouping Logic**: A single user intent (e.g., "handle SMS") requires multiple permissions that must be requested coherently:
-   ```
-   SEND_SMS, READ_SMS, RECEIVE_SMS, WRITE_SMS, RECEIVE_WAP_PUSH, RECEIVE_MMS
-   ```
+
+    ```Text
+    SEND_SMS, READ_SMS, RECEIVE_SMS, WRITE_SMS, RECEIVE_WAP_PUSH, RECEIVE_MMS
+    ```
 
 3. **Role API Complexity**: Default app roles (SMS handler, Dialer) require completely different request flows than standard runtime permissions
 
@@ -87,7 +89,7 @@ Android's permission system has evolved significantly across versions, creating 
 ### 2.3 Target User Personas
 
 | Persona | Pain Point | Solution Benefit |
-|---------|------------|------------------|
+| --------- | ------------ | ------------------ |
 | Flutter Developer (Junior) | Unfamiliar with Android permission system | Intent-based API hides complexity |
 | Flutter Developer (Senior) | Boilerplate code for permission flows | Consolidated, tested implementation |
 | App Architect | Inconsistent permission handling across team | Standardized pattern enforcement |
@@ -101,7 +103,7 @@ Android's permission system has evolved significantly across versions, creating 
 
 The core innovation is mapping **user intents** to **permission requirements**:
 
-```
+```Text
 ┌─────────────────────────────────────────────────────────────────┐
 │                      APPLICATION LAYER                          │
 │                                                                 │
@@ -142,7 +144,7 @@ The core innovation is mapping **user intents** to **permission requirements**:
 ### 3.2 Supported Intentions (v0.0.1)
 
 | Intention | Role Required | Permissions | Use Case |
-|-----------|---------------|-------------|----------|
+| ----------- | --------------- | ------------- | ---------- |
 | `texting` | `android.app.role.SMS` | 6 SMS-related permissions | SMS/MMS apps, messaging features |
 | `calling` | `android.app.role.DIALER` | READ_PHONE_STATE, READ_PHONE_NUMBERS | Dialer apps, call features |
 | `contacts` | None | WRITE_CONTACTS, READ_CONTACTS, MANAGE_OWN_CALLS | Contact management |
@@ -190,7 +192,7 @@ Intention.fileAccess.role // Returns null
 
 The plugin follows Flutter's **federated plugin pattern**, which separates:
 
-```
+```Text
 ┌─────────────────────────────────────────────────────────────────┐
 │                    App-Facing Package                           │
 │                   (simple_permissions)                          │
@@ -232,7 +234,7 @@ The plugin follows Flutter's **federated plugin pattern**, which separates:
 ### 4.3 Why Federated?
 
 | Benefit | Explanation |
-|---------|-------------|
+| --------- | ------------- |
 | **Platform Isolation** | Android-specific code doesn't pollute iOS builds and vice versa |
 | **Independent Versioning** | Platform implementations can be updated without Dart API changes |
 | **Custom Implementations** | Enterprise users can swap in proprietary implementations |
@@ -255,6 +257,7 @@ abstract class SimplePermissionsPlatform extends PlatformInterface {
 ```
 
 This pattern from `plugin_platform_interface` ensures:
+
 - Only legitimate implementations can register
 - Prevents accidental overwrites
 - Enforces inheritance from `PlatformInterface`
@@ -265,7 +268,7 @@ This pattern from `plugin_platform_interface` ensures:
 
 ### 5.1 Package Structure
 
-```
+```Text
 simple_permissions/
 ├── lib/
 │   ├── simple_permissions.dart              # Public API exports
@@ -298,7 +301,7 @@ simple_permissions/
 
 ### 5.2 Class Diagram
 
-```
+```Text
 ┌───────────────────────────────────────────────────────────────────┐
 │                                                                   │
 │  ┌─────────────────────┐         ┌──────────────────────────┐   │
@@ -342,13 +345,15 @@ simple_permissions/
 **Channel Name**: `'simple_permissions'`
 
 **Current Methods**:
+
 | Method | Arguments | Return | Description |
-|--------|-----------|--------|-------------|
+| -------- | ----------- | -------- | ------------- |
 | `getPlatformVersion` | None | `String?` | Returns platform OS version |
 
 **Planned Methods**:
+
 | Method | Arguments | Return | Description |
-|--------|-----------|--------|-------------|
+| -------- | ----------- | -------- | ------------- |
 | `requestPermission` | `{intention: String, permissions: List<String>, role: String?}` | `Map<String, dynamic>` | Request permissions for intention |
 | `checkPermission` | `{permissions: List<String>}` | `Map<String, bool>` | Check current permission states |
 | `requestRole` | `{role: String}` | `bool` | Request default app role |
@@ -357,7 +362,7 @@ simple_permissions/
 
 ### 5.4 Data Flow Sequence
 
-```
+```Text
 ┌──────────┐     ┌─────────────────┐     ┌────────────────┐     ┌──────────────┐
 │   App    │     │SimplePermissions│     │ MethodChannel  │     │ Native Code  │
 └────┬─────┘     └───────┬─────────┘     └───────┬────────┘     └──────┬───────┘
@@ -469,6 +474,7 @@ class SimplePermissions {
 ### 6.3 Usage Examples
 
 **Basic Permission Request**:
+
 ```dart
 final permissions = SimplePermissions();
 
@@ -488,6 +494,7 @@ if (result.isFullyGranted) {
 ```
 
 **Checking Without Requesting**:
+
 ```dart
 // Pre-check before showing SMS-related UI
 final status = await permissions.check(Intention.texting);
@@ -500,6 +507,7 @@ if (status.isFullyGranted) {
 ```
 
 **Accessing Raw Permissions**:
+
 ```dart
 // For advanced use cases, access underlying permission lists
 print(Intention.texting.permissions);
@@ -515,7 +523,7 @@ print(Intention.texting.role);
 
 ### 7.1 Phase Overview
 
-```
+```Text
 Phase 1: Scaffold (✅ COMPLETE)
 ├── Dart API design
 ├── Platform interface
@@ -552,6 +560,7 @@ flutter create -t plugin --platforms android .
 ```
 
 This generates:
+
 - `android/src/main/kotlin/.../SimplePermissionsPlugin.kt`
 - `android/build.gradle`
 - `android/settings.gradle`
@@ -675,7 +684,7 @@ The example app (and consuming apps) must declare required permissions:
 iOS has a fundamentally different permission model. The mapping strategy:
 
 | Intention | iOS Equivalent | Framework |
-|-----------|---------------|-----------|
+| ----------- | --------------- | ----------- |
 | `texting` | MessageUI (no permission needed for compose), Messages Extension | MessageUI |
 | `calling` | CallKit permissions | CallKit |
 | `contacts` | CNContactStore authorization | Contacts |
@@ -760,7 +769,7 @@ public class SimplePermissionsPlugin: NSObject, FlutterPlugin {
 #### 8.1.1 API Level Requirements
 
 | Feature | Minimum API | Notes |
-|---------|-------------|-------|
+| --------- | ------------- | ------- |
 | Runtime Permissions | 23 (M) | Core requirement |
 | Role API | 29 (Q) | Optional, graceful fallback |
 | Granular Media | 33 (T) | READ_MEDIA_* permissions |
@@ -768,7 +777,7 @@ public class SimplePermissionsPlugin: NSObject, FlutterPlugin {
 
 #### 8.1.2 Role API Flow
 
-```
+```Text
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Role Request Flow                             │
 ├─────────────────────────────────────────────────────────────────┤
@@ -850,7 +859,7 @@ extension PHAuthorizationStatus {
 #### 8.2.2 iOS Permission Request Behavior
 
 | Behavior | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | One-time prompt | iOS only shows permission prompt once per permission type |
 | Settings redirect | After denial, must redirect to Settings app |
 | Privacy strings required | App crashes without Info.plist usage descriptions |
@@ -861,7 +870,7 @@ extension PHAuthorizationStatus {
 #### 8.3.1 Intention Compatibility Matrix
 
 | Intention | Android | iOS | Web | Desktop |
-|-----------|---------|-----|-----|---------|
+| ----------- | --------- | ----- | ----- | --------- |
 | `texting` | Full | Limited* | N/A | N/A |
 | `calling` | Full | Full | N/A | N/A |
 | `contacts` | Full | Full | N/A | Limited |
@@ -899,7 +908,7 @@ Future<PermissionResult> request(Intention intention) async {
 
 The plugin is designed to request only the permissions necessary for the declared intention:
 
-```
+```Text
 ┌─────────────────────────────────────────────────────────────────┐
 │            Permission Scope by Intention                         │
 ├─────────────────────────────────────────────────────────────────┤
@@ -932,6 +941,7 @@ void auditPermissions() {
 ### 9.3 No Data Collection
 
 The plugin:
+
 - Does NOT collect or transmit permission status
 - Does NOT include analytics or telemetry
 - Does NOT store permission history
@@ -955,7 +965,7 @@ Future<String?> getPlatformVersion() async {
 
 ### 10.1 Test Pyramid
 
-```
+```Text
                     ┌───────────┐
                    │ E2E Tests  │  Integration tests on real devices
                   │  (Manual)   │  - Permission dialogs
@@ -1075,7 +1085,7 @@ void main() {
 ### 10.4 Manual Testing Checklist
 
 | Scenario | Android | iOS |
-|----------|---------|-----|
+| ---------- | --------- | ----- |
 | First-time permission request | ☐ | ☐ |
 | Permission already granted | ☐ | ☐ |
 | Permission denied | ☐ | ☐ |
@@ -1189,7 +1199,7 @@ screenshots:
 Following [Semantic Versioning](https://semver.org/):
 
 | Version | Change Type | Examples |
-|---------|-------------|----------|
+| --------- | ------------- | ---------- |
 | 0.0.x | Pre-release development | Bug fixes, documentation |
 | 0.x.0 | API additions (pre-1.0) | New intentions, methods |
 | 1.0.0 | Stable release | Production-ready |
@@ -1257,7 +1267,7 @@ jobs:
 
 ### 11.4 Release Process
 
-```
+```Text
 1. Development Complete
    └─ All tests passing
    └─ Documentation updated
@@ -1306,7 +1316,7 @@ class SimplePermissions {
 ### 12.2 Method Channel Overhead
 
 | Operation | Typical Latency | Notes |
-|-----------|-----------------|-------|
+| ----------- | ----------------- | ------- |
 | `getPlatformVersion` | <5ms | Simple string return |
 | `checkPermission` | <10ms | Context lookup only |
 | `requestPermission` | 0-5000ms | Depends on user interaction |
@@ -1314,7 +1324,7 @@ class SimplePermissions {
 
 ### 12.3 Memory Footprint
 
-```
+```Text
 ┌─────────────────────────────────────────────────────────────────┐
 │ Component               │ Memory Impact                         │
 ├─────────────────────────────────────────────────────────────────┤
@@ -1354,19 +1364,19 @@ Widget build(BuildContext context) {
 ### 13.1 Flutter SDK Compatibility
 
 | Plugin Version | Flutter Version | Dart Version |
-|----------------|-----------------|--------------|
+| ---------------- | ----------------- | -------------- |
 | 0.0.1 | >=3.3.0 | >=3.7.2 |
 
 ### 13.2 Android Compatibility
 
 | Plugin Version | Min SDK | Target SDK | Compile SDK |
-|----------------|---------|------------|-------------|
+| ---------------- | --------- | ------------ | ------------- |
 | 0.0.1 | 21 | 34 | 34 |
 
 ### 13.3 iOS Compatibility
 
 | Plugin Version | Min iOS | Deployment Target |
-|----------------|---------|-------------------|
+| ---------------- | --------- | ------------------- |
 | 0.0.1 | 12.0 | 12.0 |
 
 ### 13.4 Dependency Versions
@@ -1385,7 +1395,7 @@ dependencies:
 ### 13.5 Breaking Change Policy
 
 | Change Type | Handling |
-|-------------|----------|
+| ------------- | ---------- |
 | New intentions | Non-breaking, minor version bump |
 | New methods | Non-breaking, minor version bump |
 | Permission string changes | Breaking (tied to Android releases) |
@@ -1399,7 +1409,7 @@ dependencies:
 ### 14.1 Short-term (v0.1.0 - v0.5.0)
 
 | Feature | Priority | Status |
-|---------|----------|--------|
+| --------- | ---------- | -------- |
 | Android native implementation | P0 | 🔄 In Progress |
 | iOS native implementation | P0 | 📋 Planned |
 | `request()` and `check()` methods | P0 | 📋 Planned |
@@ -1410,7 +1420,7 @@ dependencies:
 ### 14.2 Medium-term (v0.5.0 - v1.0.0)
 
 | Feature | Priority | Description |
-|---------|----------|-------------|
+| --------- | ---------- | ------------- |
 | Permission rationale UI | P2 | Built-in rationale dialog |
 | Batch permission requests | P2 | Request multiple intentions |
 | Permission change listener | P2 | Stream-based status updates |
@@ -1420,7 +1430,7 @@ dependencies:
 ### 14.3 Long-term (v1.0.0+)
 
 | Feature | Priority | Description |
-|---------|----------|-------------|
+| --------- | ---------- | ------------- |
 | Web support | P3 | Browser Permissions API |
 | macOS support | P3 | App Sandbox entitlements |
 | Windows support | P3 | Capability-based permissions |
@@ -1430,7 +1440,7 @@ dependencies:
 ### 14.4 Potential New Intentions
 
 | Intention | Use Case | Permissions |
-|-----------|----------|-------------|
+| ----------- | ---------- | ------------- |
 | `location` | Maps, geofencing | ACCESS_FINE/COARSE_LOCATION |
 | `camera` | Photo/video capture | CAMERA |
 | `microphone` | Audio recording | RECORD_AUDIO |
@@ -1446,7 +1456,7 @@ dependencies:
 ### 15.1 Technical Risks
 
 | Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
+| ------ | ------------- | -------- | ------------ |
 | Android permission changes | High | Medium | Monitor Android releases, maintain compatibility matrix |
 | iOS API deprecations | Medium | Medium | Follow Apple developer documentation |
 | Method channel instability | Low | High | Use stable Flutter APIs, extensive testing |
@@ -1455,7 +1465,7 @@ dependencies:
 ### 15.2 Project Risks
 
 | Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
+| ------ | ------------- | -------- | ------------ |
 | Scope creep | Medium | Medium | Strict intention-based scope |
 | Platform implementation delays | Medium | High | Prioritize Android first, parallel iOS work |
 | Community adoption | Unknown | Medium | Clear documentation, example apps |
@@ -1464,7 +1474,7 @@ dependencies:
 ### 15.3 Compliance Risks
 
 | Risk | Probability | Impact | Mitigation |
-|------|-------------|--------|------------|
+| ------ | ------------- | -------- | ------------ |
 | Play Store policy changes | Medium | High | Monitor policy updates, adapt quickly |
 | App Store policy changes | Medium | High | Monitor policy updates, adapt quickly |
 | Privacy regulation (GDPR, etc.) | Low | Medium | No data collection, on-device only |
@@ -1472,7 +1482,7 @@ dependencies:
 ### 15.4 Known Issues
 
 | Issue | Status | Workaround |
-|-------|--------|------------|
+| ------- | -------- | ------------ |
 | `Intention.device` uses inconsistent permission format | Open | Use `android.permission.READ_DEVICE_CONFIG` |
 | Platform support not yet generated | Open | Run `flutter create -t plugin --platforms android,ios .` |
 | pubspec.yaml has placeholder platform | Open | Replace `some_platform` after generation |
@@ -1486,7 +1496,7 @@ dependencies:
 #### A.1 SMS Permissions (Intention.texting)
 
 | Permission | Protection Level | Description |
-|------------|-----------------|-------------|
+| ------------ | ----------------- | ------------- |
 | `SEND_SMS` | Dangerous | Send SMS messages |
 | `READ_SMS` | Dangerous | Read SMS messages |
 | `RECEIVE_SMS` | Dangerous | Receive SMS messages |
@@ -1497,14 +1507,14 @@ dependencies:
 #### A.2 Phone Permissions (Intention.calling)
 
 | Permission | Protection Level | Description |
-|------------|-----------------|-------------|
+| ------------ | ----------------- | ------------- |
 | `READ_PHONE_STATE` | Dangerous | Read phone state and identity |
 | `READ_PHONE_NUMBERS` | Dangerous | Read phone numbers (API 26+) |
 
 #### A.3 Contact Permissions (Intention.contacts)
 
 | Permission | Protection Level | Description |
-|------------|-----------------|-------------|
+| ------------ | ----------------- | ------------- |
 | `READ_CONTACTS` | Dangerous | Read contacts |
 | `WRITE_CONTACTS` | Dangerous | Write contacts |
 | `MANAGE_OWN_CALLS` | Signature/AppOp | Manage calls via CallRedirectionService |
@@ -1512,7 +1522,7 @@ dependencies:
 #### A.4 Storage Permissions (Intention.fileAccess)
 
 | Permission | Protection Level | API Level | Description |
-|------------|-----------------|-----------|-------------|
+| ------------ | ----------------- | ----------- | ------------- |
 | `READ_EXTERNAL_STORAGE` | Dangerous | <33 | Read external storage |
 | `READ_MEDIA_IMAGES` | Dangerous | 33+ | Read image files |
 | `READ_MEDIA_VIDEO` | Dangerous | 33+ | Read video files |
@@ -1521,7 +1531,7 @@ dependencies:
 ### Appendix B: Android Role Reference
 
 | Role | Constant | Default Handler For |
-|------|----------|---------------------|
+| ------ | ---------- | --------------------- |
 | SMS | `android.app.role.SMS` | SMS/MMS messaging |
 | Dialer | `android.app.role.DIALER` | Phone calls |
 | Browser | `android.app.role.BROWSER` | Web browsing |
@@ -1532,7 +1542,7 @@ dependencies:
 ### Appendix C: iOS Permission Reference
 
 | Framework | Permission | Info.plist Key |
-|-----------|------------|----------------|
+| ----------- | ------------ | ---------------- |
 | Contacts | CNContactStore | `NSContactsUsageDescription` |
 | Photos | PHPhotoLibrary | `NSPhotoLibraryUsageDescription` |
 | Camera | AVCaptureDevice | `NSCameraUsageDescription` |
@@ -1581,7 +1591,7 @@ String? get role {
 ### Appendix E: Glossary
 
 | Term | Definition |
-|------|------------|
+| ------ | ------------ |
 | **Dangerous Permission** | Android permission requiring runtime request |
 | **Federated Plugin** | Flutter plugin architecture separating platform implementations |
 | **Intention** | High-level user goal mapped to permission requirements |

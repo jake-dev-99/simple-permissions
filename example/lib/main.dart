@@ -18,7 +18,7 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   Map<String, bool>? _permissions;
-  bool? _smsRole;
+  bool? _textingReady;
 
   @override
   void initState() {
@@ -30,15 +30,13 @@ class _MyAppState extends State<MyApp> {
     final perms = await SimplePermissions.instance.checkPermissions(
       Intention.texting.permissions,
     );
-    final role = await SimplePermissions.instance.isRoleHeld(
-      Intention.texting.role!,
-    );
+    final ready = await SimplePermissions.instance.check(Intention.texting);
 
     if (!mounted) return;
 
     setState(() {
       _permissions = perms;
-      _smsRole = role;
+      _textingReady = ready;
     });
   }
 
@@ -46,29 +44,25 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
-        appBar: AppBar(
-          title: const Text('Simple Permissions Example'),
-        ),
+        appBar: AppBar(title: const Text('Simple Permissions Example')),
         body: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('SMS Role: ${_smsRole ?? "checking..."}'),
+              Text('Texting Ready: ${_textingReady ?? "checking..."}'),
               const SizedBox(height: 16),
               const Text('Permissions:'),
               if (_permissions != null)
-                ..._permissions!.entries.map((e) => Text(
-                      '  ${e.key.split('.').last}: ${e.value}',
-                    )),
+                ..._permissions!.entries.map(
+                  (e) => Text('  ${e.key.split('.').last}: ${e.value}'),
+                ),
             ],
           ),
         ),
         floatingActionButton: FloatingActionButton(
           onPressed: () async {
-            await SimplePermissions.instance.requestPermissions(
-              Intention.texting.permissions,
-            );
+            await SimplePermissions.instance.request(Intention.texting);
             await _checkPermissions();
           },
           child: const Icon(Icons.refresh),

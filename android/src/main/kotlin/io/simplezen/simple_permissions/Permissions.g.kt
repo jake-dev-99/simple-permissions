@@ -103,6 +103,18 @@ interface PermissionsHostApi {
    * Shows system dialog explaining the request. Returns true if granted.
    */
   fun requestIgnoreBatteryOptimizations(callback: (Result<Boolean>) -> Unit)
+  /**
+   * Checks Android rationale visibility for each permission.
+   *
+   * Returns permission -> shouldShowRationale.
+   */
+  fun shouldShowRequestPermissionRationale(permissions: List<String>): Map<String, Boolean>
+  /**
+   * Opens this app's system settings page.
+   *
+   * Returns true if the intent was started successfully.
+   */
+  fun openAppSettings(): Boolean
 
   companion object {
     /** The codec used by PermissionsHostApi. */
@@ -215,6 +227,38 @@ interface PermissionsHostApi {
                 reply.reply(wrapResult(data))
               }
             }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions.PermissionsHostApi.shouldShowRequestPermissionRationale$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val permissionsArg = args[0] as List<String>
+            val wrapped: List<Any?> = try {
+              listOf(api.shouldShowRequestPermissionRationale(permissionsArg))
+            } catch (exception: Throwable) {
+              wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions.PermissionsHostApi.openAppSettings$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.openAppSettings())
+            } catch (exception: Throwable) {
+              wrapError(exception)
+            }
+            reply.reply(wrapped)
           }
         } else {
           channel.setMessageHandler(null)

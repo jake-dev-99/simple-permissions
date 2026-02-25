@@ -86,7 +86,9 @@ enum Intention {
         ];
       case Intention.fileAccess:
         return const [
+          // API < 33
           'android.permission.READ_EXTERNAL_STORAGE',
+          // API >= 33
           'android.permission.READ_MEDIA_IMAGES',
           'android.permission.READ_MEDIA_VIDEO',
           'android.permission.READ_MEDIA_AUDIO',
