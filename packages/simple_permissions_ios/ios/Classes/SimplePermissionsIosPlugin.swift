@@ -99,6 +99,26 @@ public class SimplePermissionsIosPlugin: NSObject, FlutterPlugin, PermissionsIos
       }
     }
   }
+
+  func checkLocationAccuracy(completion: @escaping (Result<String, Error>) -> Void) {
+    guard #available(iOS 14.0, *) else {
+      completion(.success("notAvailable"))
+      return
+    }
+
+    let manager = CLLocationManager()
+    let authStatus = manager.authorizationStatus
+    switch authStatus {
+    case .authorizedAlways, .authorizedWhenInUse:
+      completion(.success(
+        manager.accuracyAuthorization == .reducedAccuracy ? "reduced" : "precise"
+      ))
+    case .notDetermined, .denied, .restricted:
+      completion(.success("none"))
+    @unknown default:
+      completion(.success("none"))
+    }
+  }
 }
 
 // MARK: - Handler Registry

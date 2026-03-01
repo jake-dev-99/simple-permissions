@@ -81,3 +81,36 @@ class WriteCallLog extends PhonePermission {
   @override
   String get identifier => 'write_call_log';
 }
+
+/// Read voicemail messages.
+///
+/// - **Android**: `android.permission.READ_VOICEMAIL`
+/// - **iOS**: Not applicable
+class ReadVoicemail extends PhonePermission {
+  const ReadVoicemail();
+
+  @override
+  String get identifier => 'read_voicemail';
+}
+
+/// Add voicemail entries.
+///
+/// - **Android**: `android.permission.ADD_VOICEMAIL`
+/// - **iOS**: Not applicable
+class AddVoicemail extends PhonePermission {
+  const AddVoicemail();
+
+  @override
+  String get identifier => 'add_voicemail';
+}
+
+/// Accept call handover from another app.
+///
+/// - **Android**: `android.permission.ACCEPT_HANDOVER`
+/// - **iOS**: Not applicable
+class AcceptHandover extends PhonePermission {
+  const AcceptHandover();
+
+  @override
+  String get identifier => 'accept_handover';
+}

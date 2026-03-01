@@ -22,6 +22,9 @@ class MockPermissionsMacosApi implements PermissionsMacosApi {
   /// Value returned by [openAppSettings].
   bool openSettingsResult = true;
 
+  /// Wire value returned by [checkLocationAccuracy].
+  String locationAccuracyResult = 'notApplicable';
+
   @override
   Future<String> checkPermission(String identifier) async {
     log.add((method: 'checkPermission', identifier: identifier));
@@ -44,6 +47,12 @@ class MockPermissionsMacosApi implements PermissionsMacosApi {
   Future<bool> openAppSettings() async {
     log.add((method: 'openAppSettings', identifier: null));
     return openSettingsResult;
+  }
+
+  @override
+  Future<String> checkLocationAccuracy() async {
+    log.add((method: 'checkLocationAccuracy', identifier: null));
+    return locationAccuracyResult;
   }
 }
 
@@ -265,6 +274,32 @@ void main() {
     test('returns false when API returns false', () async {
       mockApi.openSettingsResult = false;
       expect(await plugin.openAppSettings(), isFalse);
+    });
+  });
+
+  group('checkLocationAccuracy()', () {
+    test('maps precise', () async {
+      mockApi.locationAccuracyResult = 'precise';
+      expect(
+        await plugin.checkLocationAccuracy(),
+        LocationAccuracyStatus.precise,
+      );
+    });
+
+    test('maps none', () async {
+      mockApi.locationAccuracyResult = 'none';
+      expect(
+        await plugin.checkLocationAccuracy(),
+        LocationAccuracyStatus.none,
+      );
+    });
+
+    test('maps notAvailable', () async {
+      mockApi.locationAccuracyResult = 'notAvailable';
+      expect(
+        await plugin.checkLocationAccuracy(),
+        LocationAccuracyStatus.notAvailable,
+      );
     });
   });
 

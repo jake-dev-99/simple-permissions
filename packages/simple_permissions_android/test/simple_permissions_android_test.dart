@@ -248,6 +248,7 @@ void main() {
         // Phone
         ReadPhoneState, ReadPhoneNumbers, MakeCalls, AnswerCalls,
         ManageOwnCalls, ReadCallLog, WriteCallLog,
+        ReadVoicemail, AddVoicemail, AcceptHandover,
         // Messaging
         SendSms, ReadSms, ReceiveSms, ReceiveMms, ReceiveWapPush,
         // Bluetooth
@@ -260,7 +261,7 @@ void main() {
         // Microphone
         RecordAudio,
         // Sensors
-        BodySensors, ActivityRecognition,
+        BodySensors, BodySensorsBackground, ActivityRecognition, UwbRanging,
         // System
         BatteryOptimizationExemption, ScheduleExactAlarm,
         RequestInstallPackages, SystemAlertWindow, ManageExternalStorage,
@@ -751,6 +752,49 @@ void main() {
       expect(result, PermissionGrant.granted);
     });
 
+    test(
+        'request BackgroundLocation on API 30+ returns denied when foreground missing',
+        () async {
+      mockApi.checkResult = {
+        'android.permission.ACCESS_BACKGROUND_LOCATION': false,
+        'android.permission.ACCESS_FINE_LOCATION': false,
+        'android.permission.ACCESS_COARSE_LOCATION': false,
+      };
+
+      final result = await plugin.request(const BackgroundLocation());
+
+      expect(result, PermissionGrant.denied);
+      expect(
+        mockApi.calls.where(
+          (c) =>
+              c ==
+              'requestPermissions:android.permission.ACCESS_BACKGROUND_LOCATION',
+        ),
+        isEmpty,
+      );
+    });
+
+    test(
+        'request BackgroundLocation on API 30+ proceeds when foreground granted',
+        () async {
+      mockApi.checkResult = {
+        'android.permission.ACCESS_BACKGROUND_LOCATION': false,
+        'android.permission.ACCESS_FINE_LOCATION': true,
+      };
+      mockApi.requestResult = {
+        'android.permission.ACCESS_BACKGROUND_LOCATION': true,
+      };
+
+      final result = await plugin.request(const BackgroundLocation());
+
+      expect(result, PermissionGrant.granted);
+      expect(
+        mockApi.calls,
+        contains(
+            'requestPermissions:android.permission.ACCESS_BACKGROUND_LOCATION'),
+      );
+    });
+
     test('request correctly classifies permanent denial', () async {
       mockApi.checkResult = {'android.permission.CAMERA': false};
       mockApi.requestResult = {'android.permission.CAMERA': false};
@@ -798,6 +842,30 @@ void main() {
       expect(plugin30.isSupported(const ScheduleExactAlarm()), isFalse);
       expect(plugin30.isSupported(const RequestInstallPackages()), isTrue);
       expect(plugin30.isSupported(const ManageExternalStorage()), isTrue);
+    });
+
+    test('isSupported respects SDK minimums for niche Android permissions', () {
+      final plugin30 = SimplePermissionsAndroid(
+        api: mockApi,
+        sdkVersionOverride: () => 30,
+      );
+      final plugin31 = SimplePermissionsAndroid(
+        api: mockApi,
+        sdkVersionOverride: () => 31,
+      );
+      final plugin32 = SimplePermissionsAndroid(
+        api: mockApi,
+        sdkVersionOverride: () => 32,
+      );
+      final plugin33 = SimplePermissionsAndroid(
+        api: mockApi,
+        sdkVersionOverride: () => 33,
+      );
+
+      expect(plugin30.isSupported(const UwbRanging()), isFalse);
+      expect(plugin31.isSupported(const UwbRanging()), isTrue);
+      expect(plugin32.isSupported(const BodySensorsBackground()), isFalse);
+      expect(plugin33.isSupported(const BodySensorsBackground()), isTrue);
     });
 
     test('openAppSettings delegates to host API', () async {
@@ -878,6 +946,37 @@ void main() {
       expect(
         mockApi.calls.where((c) => c.startsWith('shouldShowRationale')).length,
         1,
+      );
+    });
+
+    test(
+        'requestAll excludes BackgroundLocation request on API 30+ when foreground missing',
+        () async {
+      mockApi.checkResult = {
+        'android.permission.ACCESS_BACKGROUND_LOCATION': false,
+        'android.permission.CAMERA': false,
+        'android.permission.ACCESS_FINE_LOCATION': false,
+        'android.permission.ACCESS_COARSE_LOCATION': false,
+      };
+      mockApi.requestResult = {'android.permission.CAMERA': true};
+
+      final result = await plugin.requestAll([
+        const BackgroundLocation(),
+        const CameraAccess(),
+      ]);
+
+      expect(result[const BackgroundLocation()], PermissionGrant.denied);
+      expect(result[const CameraAccess()], PermissionGrant.granted);
+      expect(
+        mockApi.calls,
+        contains('requestPermissions:android.permission.CAMERA'),
+      );
+      expect(
+        mockApi.calls.where(
+          (c) => c.contains('android.permission.ACCESS_BACKGROUND_LOCATION'),
+        ),
+        isNot(contains(
+            'requestPermissions:android.permission.ACCESS_BACKGROUND_LOCATION')),
       );
     });
 
@@ -964,6 +1063,39 @@ void main() {
         1,
       );
       expect(mockApi.calls, contains('isRoleHeld:android.app.role.SMS'));
+    });
+
+    test('checkLocationAccuracy returns precise when fine location granted',
+        () async {
+      mockApi.checkResult = {
+        'android.permission.ACCESS_FINE_LOCATION': true,
+        'android.permission.ACCESS_COARSE_LOCATION': true,
+      };
+
+      final result = await plugin.checkLocationAccuracy();
+      expect(result, LocationAccuracyStatus.precise);
+    });
+
+    test('checkLocationAccuracy returns reduced when only coarse granted',
+        () async {
+      mockApi.checkResult = {
+        'android.permission.ACCESS_FINE_LOCATION': false,
+        'android.permission.ACCESS_COARSE_LOCATION': true,
+      };
+
+      final result = await plugin.checkLocationAccuracy();
+      expect(result, LocationAccuracyStatus.reduced);
+    });
+
+    test('checkLocationAccuracy returns none when location not granted',
+        () async {
+      mockApi.checkResult = {
+        'android.permission.ACCESS_FINE_LOCATION': false,
+        'android.permission.ACCESS_COARSE_LOCATION': false,
+      };
+
+      final result = await plugin.checkLocationAccuracy();
+      expect(result, LocationAccuracyStatus.none);
     });
   });
 

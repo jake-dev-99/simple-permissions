@@ -36,4 +36,8 @@ abstract class PermissionsIosHostApi {
   /// Open this app's settings page in the Settings app.
   @async
   bool openAppSettings();
+
+  /// Check location accuracy ("precise", "reduced", "none", "notAvailable").
+  @async
+  String checkLocationAccuracy();
 }

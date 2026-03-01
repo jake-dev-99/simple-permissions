@@ -42,6 +42,9 @@ abstract final class AndroidPermission {
   static const manageOwnCalls = 'android.permission.MANAGE_OWN_CALLS';
   static const readCallLog = 'android.permission.READ_CALL_LOG';
   static const writeCallLog = 'android.permission.WRITE_CALL_LOG';
+  static const readVoicemail = 'android.permission.READ_VOICEMAIL';
+  static const addVoicemail = 'android.permission.ADD_VOICEMAIL';
+  static const acceptHandover = 'android.permission.ACCEPT_HANDOVER';
 
   // Messaging (SMS/MMS)
   static const sendSms = 'android.permission.SEND_SMS';
@@ -69,7 +72,10 @@ abstract final class AndroidPermission {
 
   // Sensors
   static const bodySensors = 'android.permission.BODY_SENSORS';
+  static const bodySensorsBackground =
+      'android.permission.BODY_SENSORS_BACKGROUND';
   static const activityRecognition = 'android.permission.ACTIVITY_RECOGNITION';
+  static const uwbRanging = 'android.permission.UWB_RANGING';
 
   // System
   static const scheduleExactAlarm = 'android.permission.SCHEDULE_EXACT_ALARM';
@@ -168,6 +174,14 @@ Map<Type, PermissionHandler> buildAndroidPermissionRegistry() {
     WriteCallLog: const RuntimePermissionHandler(
       AndroidPermission.writeCallLog,
     ),
+    ReadVoicemail: const RuntimePermissionHandler(
+      AndroidPermission.readVoicemail,
+    ),
+    AddVoicemail:
+        const RuntimePermissionHandler(AndroidPermission.addVoicemail),
+    AcceptHandover: const RuntimePermissionHandler(
+      AndroidPermission.acceptHandover,
+    ),
 
     // =========================================================================
     // Messaging (SMS/MMS)
@@ -213,6 +227,8 @@ Map<Type, PermissionHandler> buildAndroidPermissionRegistry() {
     WriteCalendar: const RuntimePermissionHandler(
       AndroidPermission.writeCalendar,
     ),
+    // Android does not expose separate reminders permissions; reminders are
+    // governed by the same calendar runtime grants.
     ReadReminders: const RuntimePermissionHandler(
       AndroidPermission.readCalendar,
     ),
@@ -239,9 +255,17 @@ Map<Type, PermissionHandler> buildAndroidPermissionRegistry() {
     BodySensors: const RuntimePermissionHandler(
       AndroidPermission.bodySensors,
     ),
+    BodySensorsBackground: const RuntimePermissionHandler(
+      AndroidPermission.bodySensorsBackground,
+      minSdk: 33,
+    ),
     ActivityRecognition: const RuntimePermissionHandler(
       AndroidPermission.activityRecognition,
       minSdk: 29,
+    ),
+    UwbRanging: const RuntimePermissionHandler(
+      AndroidPermission.uwbRanging,
+      minSdk: 31,
     ),
 
     // =========================================================================

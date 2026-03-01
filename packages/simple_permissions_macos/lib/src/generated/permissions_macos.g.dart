@@ -15,7 +15,6 @@ PlatformException _createConnectionError(String channelName) {
   );
 }
 
-
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -46,9 +45,11 @@ class PermissionsMacosHostApi {
   /// Constructor for [PermissionsMacosHostApi].  The [binaryMessenger] named argument is
   /// available for dependency injection.  If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  PermissionsMacosHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+  PermissionsMacosHostApi(
+      {BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
       : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+        pigeonVar_messageChannelSuffix =
+            messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -60,8 +61,10 @@ class PermissionsMacosHostApi {
   /// Returns a wire string: "granted", "denied", "permanentlyDenied",
   /// "restricted", "limited", "notApplicable", "notAvailable", "provisional".
   Future<String> checkPermission(String identifier) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.simple_permissions_macos.PermissionsMacosHostApi.checkPermission$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.simple_permissions_macos.PermissionsMacosHostApi.checkPermission$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -90,8 +93,10 @@ class PermissionsMacosHostApi {
   ///
   /// Returns a wire string with the same values as [checkPermission].
   Future<String> requestPermission(String identifier) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.simple_permissions_macos.PermissionsMacosHostApi.requestPermission$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.simple_permissions_macos.PermissionsMacosHostApi.requestPermission$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -118,8 +123,10 @@ class PermissionsMacosHostApi {
 
   /// Whether the given permission identifier is supported on this macOS version.
   Future<bool> isSupported(String identifier) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.simple_permissions_macos.PermissionsMacosHostApi.isSupported$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.simple_permissions_macos.PermissionsMacosHostApi.isSupported$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -146,8 +153,10 @@ class PermissionsMacosHostApi {
 
   /// Open this app's settings in System Settings (macOS 13+) / System Preferences.
   Future<bool> openAppSettings() async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.simple_permissions_macos.PermissionsMacosHostApi.openAppSettings$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.simple_permissions_macos.PermissionsMacosHostApi.openAppSettings$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -169,6 +178,36 @@ class PermissionsMacosHostApi {
       );
     } else {
       return (pigeonVar_replyList[0] as bool?)!;
+    }
+  }
+
+  /// Check location accuracy ("precise", "none", "notApplicable", "notAvailable").
+  Future<String> checkLocationAccuracy() async {
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.simple_permissions_macos.PermissionsMacosHostApi.checkLocationAccuracy$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final List<Object?>? pigeonVar_replyList =
+        await pigeonVar_channel.send(null) as List<Object?>?;
+    if (pigeonVar_replyList == null) {
+      throw _createConnectionError(pigeonVar_channelName);
+    } else if (pigeonVar_replyList.length > 1) {
+      throw PlatformException(
+        code: pigeonVar_replyList[0]! as String,
+        message: pigeonVar_replyList[1] as String?,
+        details: pigeonVar_replyList[2],
+      );
+    } else if (pigeonVar_replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (pigeonVar_replyList[0] as String?)!;
     }
   }
 }

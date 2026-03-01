@@ -1,6 +1,7 @@
 library;
 
 import 'package:simple_permissions_platform_interface/simple_permissions_platform_interface.dart';
+import 'package:simple_permissions_platform_interface/darwin_permission_utils.dart';
 
 import 'src/generated/permissions_ios.g.dart';
 import 'src/ios_permission_registry.dart';
@@ -71,4 +72,23 @@ class SimplePermissionsIos extends SimplePermissionsPlatform {
 
   @override
   Future<bool> openAppSettings() => _api.openAppSettings();
+
+  @override
+  Future<LocationAccuracyStatus> checkLocationAccuracy() async {
+    final wire = await _api.checkLocationAccuracy();
+    switch (wire) {
+      case 'precise':
+        return LocationAccuracyStatus.precise;
+      case 'reduced':
+        return LocationAccuracyStatus.reduced;
+      case 'none':
+        return LocationAccuracyStatus.none;
+      case 'notAvailable':
+        return LocationAccuracyStatus.notAvailable;
+      case 'notApplicable':
+        return LocationAccuracyStatus.notApplicable;
+      default:
+        return LocationAccuracyStatus.notApplicable;
+    }
+  }
 }

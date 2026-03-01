@@ -104,6 +104,18 @@ public class SimplePermissionsMacosPlugin: NSObject, FlutterPlugin, PermissionsM
       completion(.success(false))
     }
   }
+
+  func checkLocationAccuracy(completion: @escaping (Result<String, Error>) -> Void) {
+    let status = CLLocationManager().authorizationStatus
+    switch status {
+    case .authorizedAlways, .authorizedWhenInUse:
+      completion(.success("precise"))
+    case .notDetermined, .denied, .restricted:
+      completion(.success("none"))
+    @unknown default:
+      completion(.success("none"))
+    }
+  }
 }
 
 // MARK: - Handler Registry

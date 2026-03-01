@@ -1,6 +1,6 @@
 name: simple_permissions_native
 description: "Unified permission handling for Flutter apps. Manages runtime permissions, app roles (SMS, Dialer), and battery optimization."
-version: 0.0.1
+version: 1.1.0
 homepage: https://github.com/simplezen/simple-permissions
 repository: https://github.com/simplezen/simple-permissions
 issue_tracker: https://github.com/simplezen/simple-permissions/issues
@@ -12,10 +12,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  simple_permissions_platform_interface: ^1.0.2
-  simple_permissions_android: ^1.0.2
-  simple_permissions_ios: ^1.0.2
-  simple_permissions_macos: ^1.0.2
+  simple_permissions_platform_interface: ^1.1.0
+  simple_permissions_android: ^1.1.0
+  simple_permissions_ios: ^1.1.0
+  simple_permissions_macos: ^1.1.0
 
 dev_dependencies:
   flutter_test:

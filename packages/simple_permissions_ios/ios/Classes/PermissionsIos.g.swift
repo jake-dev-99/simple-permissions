@@ -106,6 +106,8 @@ protocol PermissionsIosHostApi {
   func isSupported(identifier: String) throws -> Bool
   /// Open this app's settings page in the Settings app.
   func openAppSettings(completion: @escaping (Result<Bool, Error>) -> Void)
+  /// Check location accuracy ("precise", "reduced", "none", "notAvailable").
+  func checkLocationAccuracy(completion: @escaping (Result<String, Error>) -> Void)
 }
 
 /// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
@@ -186,6 +188,22 @@ class PermissionsIosHostApiSetup {
       }
     } else {
       openAppSettingsChannel.setMessageHandler(nil)
+    }
+    /// Check location accuracy ("precise", "reduced", "none", "notAvailable").
+    let checkLocationAccuracyChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.simple_permissions_ios.PermissionsIosHostApi.checkLocationAccuracy\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      checkLocationAccuracyChannel.setMessageHandler { _, reply in
+        api.checkLocationAccuracy { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      checkLocationAccuracyChannel.setMessageHandler(nil)
     }
   }
 }

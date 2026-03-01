@@ -63,6 +63,10 @@ class SimplePermissionsNative {
     return _ensureInitialized().openAppSettings();
   }
 
+  Future<LocationAccuracyStatus> checkLocationAccuracy() {
+    return _ensureInitialized().checkLocationAccuracy();
+  }
+
   SimplePermissionsPlatform _ensureInitialized() {
     if (!_initialized) {
       throw StateError(

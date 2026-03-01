@@ -20,4 +20,7 @@ abstract interface class PermissionsMacosApi {
 
   /// Open this app's settings in System Settings / System Preferences.
   Future<bool> openAppSettings();
+
+  /// Check current location accuracy level on macOS.
+  Future<String> checkLocationAccuracy();
 }

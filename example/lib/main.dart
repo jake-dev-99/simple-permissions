@@ -27,9 +27,8 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _checkPermissions() async {
-    final result = await SimplePermissionsNative.instance.checkIntentionDetailed(
-      Intention.texting,
-    );
+    final result = await SimplePermissionsNative.instance
+        .checkIntentionDetailed(Intention.texting);
     final ready = await SimplePermissionsNative.instance.checkIntention(
       Intention.texting,
     );
@@ -70,7 +69,7 @@ class _MyAppState extends State<MyApp> {
                 onPressed: () async {
                   final messenger = ScaffoldMessenger.of(context);
                   final grant = await SimplePermissionsNative.instance.check(
-                    ReadContacts(),
+                    const ReadContacts(),
                   );
                   if (!mounted) return;
                   messenger.showSnackBar(

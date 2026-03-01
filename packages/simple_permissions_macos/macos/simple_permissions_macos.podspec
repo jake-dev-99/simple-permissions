@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'simple_permissions_macos'
-  s.version          = '1.0.0'
+  s.version          = '1.1.0'
   s.summary          = 'macOS implementation for simple_permissions federated plugin.'
   s.description      = <<-DESC
 macOS implementation for simple_permissions federated plugin.
@@ -15,7 +15,7 @@ macOS implementation for simple_permissions federated plugin.
   s.platform         = :osx, '10.15'
 
   s.frameworks = 'AVFoundation', 'Contacts', 'CoreLocation',
-                 'EventKit', 'Photos', 'AppKit', 'ScreenCaptureKit'
+                 'EventKit', 'Photos', 'AppKit'
 
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES'

@@ -1,6 +1,6 @@
 name: simple_permissions_android
 description: Android implementation for the simple_permissions federated plugin.
-version: 1.0.2
+version: 1.1.0
 homepage: https://github.com/simplezen/simple-permissions
 repository: https://github.com/simplezen/simple-permissions
 issue_tracker: https://github.com/simplezen/simple-permissions/issues
@@ -12,7 +12,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  simple_permissions_platform_interface: ^1.0.2
+  simple_permissions_platform_interface: ^1.1.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

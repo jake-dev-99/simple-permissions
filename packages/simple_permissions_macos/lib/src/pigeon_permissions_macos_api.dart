@@ -22,4 +22,7 @@ class PigeonPermissionsMacosApi implements PermissionsMacosApi {
 
   @override
   Future<bool> openAppSettings() => _hostApi.openAppSettings();
+
+  @override
+  Future<String> checkLocationAccuracy() => _hostApi.checkLocationAccuracy();
 }

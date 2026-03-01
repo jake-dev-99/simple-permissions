@@ -1,6 +1,7 @@
 // ignore_for_file: deprecated_member_use_from_same_package
 import 'package:flutter_test/flutter_test.dart';
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
+import 'package:simple_permissions_platform_interface/darwin_permission_utils.dart';
 import 'package:simple_permissions_platform_interface/simple_permissions_platform_interface.dart';
 
 void main() {
@@ -104,6 +105,13 @@ void main() {
       expect(await noop.openAppSettings(), isTrue);
     });
 
+    test('checkLocationAccuracy returns notApplicable', () async {
+      expect(
+        await noop.checkLocationAccuracy(),
+        LocationAccuracyStatus.notApplicable,
+      );
+    });
+
     test('VersionedPermission check returns granted', () async {
       final result = await noop.check(const VersionedPermission.images());
       expect(result, PermissionGrant.granted);
@@ -129,6 +137,7 @@ void main() {
         // Phone
         ReadPhoneState(), ReadPhoneNumbers(), MakeCalls(), AnswerCalls(),
         ManageOwnCalls(), ReadCallLog(), WriteCallLog(),
+        ReadVoicemail(), AddVoicemail(), AcceptHandover(),
         // Messaging
         SendSms(), ReadSms(), ReceiveSms(), ReceiveMms(), ReceiveWapPush(),
         // Bluetooth
@@ -142,6 +151,7 @@ void main() {
         RecordAudio(),
         // Sensor
         BodySensors(), ActivityRecognition(),
+        BodySensorsBackground(), UwbRanging(),
         // System
         BatteryOptimizationExemption(), ScheduleExactAlarm(),
         RequestInstallPackages(), SystemAlertWindow(), ManageExternalStorage(),
@@ -195,12 +205,14 @@ void main() {
       expect(const ReadMediaImages(), isA<StoragePermission>());
       expect(const SendSms(), isA<MessagingPermission>());
       expect(const ReadPhoneState(), isA<PhonePermission>());
+      expect(const ReadVoicemail(), isA<PhonePermission>());
       expect(const BluetoothConnect(), isA<BluetoothPermission>());
       expect(const ReadCalendar(), isA<CalendarPermission>());
       expect(const ReadReminders(), isA<CalendarPermission>());
       expect(const PostNotifications(), isA<NotificationPermission>());
       expect(const RecordAudio(), isA<MicrophonePermission>());
       expect(const BodySensors(), isA<SensorPermission>());
+      expect(const BodySensorsBackground(), isA<SensorPermission>());
       expect(const BatteryOptimizationExemption(), isA<SystemPermission>());
       expect(const SpeechRecognition(), isA<SpeechPermission>());
       expect(const DefaultSmsApp(), isA<AppRole>());
@@ -307,6 +319,14 @@ void main() {
     test('isFullyGranted treats provisional as satisfied', () {
       const result = PermissionResult({
         PostNotifications(): PermissionGrant.provisional,
+      });
+      expect(result.isFullyGranted, isTrue);
+    });
+
+    test('isFullyGranted treats notAvailable as satisfied', () {
+      const result = PermissionResult({
+        PostNotifications(): PermissionGrant.notAvailable,
+        ReadContacts(): PermissionGrant.granted,
       });
       expect(result.isFullyGranted, isTrue);
     });
@@ -554,6 +574,21 @@ void main() {
       );
     });
   });
+
+  group('LocationAccuracyStatus', () {
+    test('has expected values', () {
+      expect(
+        LocationAccuracyStatus.values,
+        containsAll([
+          LocationAccuracyStatus.precise,
+          LocationAccuracyStatus.reduced,
+          LocationAccuracyStatus.none,
+          LocationAccuracyStatus.notApplicable,
+          LocationAccuracyStatus.notAvailable,
+        ]),
+      );
+    });
+  });
 }
 
 class _GoodPlatform extends SimplePermissionsPlatform {
@@ -569,6 +604,9 @@ class _GoodPlatform extends SimplePermissionsPlatform {
   bool isSupported(Permission p) => true;
   @override
   Future<bool> openAppSettings() async => true;
+  @override
+  Future<LocationAccuracyStatus> checkLocationAccuracy() async =>
+      LocationAccuracyStatus.precise;
 }
 
 class _MockPlatform extends SimplePermissionsPlatform
@@ -583,4 +621,7 @@ class _MockPlatform extends SimplePermissionsPlatform
   bool isSupported(Permission p) => true;
   @override
   Future<bool> openAppSettings() async => true;
+  @override
+  Future<LocationAccuracyStatus> checkLocationAccuracy() async =>
+      LocationAccuracyStatus.precise;
 }

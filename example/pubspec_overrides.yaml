@@ -1,0 +1,9 @@
+dependency_overrides:
+  simple_permissions_platform_interface:
+    path: ../packages/simple_permissions_platform_interface
+  simple_permissions_android:
+    path: ../packages/simple_permissions_android
+  simple_permissions_ios:
+    path: ../packages/simple_permissions_ios
+  simple_permissions_macos:
+    path: ../packages/simple_permissions_macos

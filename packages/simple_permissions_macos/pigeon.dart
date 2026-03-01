@@ -36,4 +36,8 @@ abstract class PermissionsMacosHostApi {
   /// Open this app's settings in System Settings (macOS 13+) / System Preferences.
   @async
   bool openAppSettings();
+
+  /// Check location accuracy ("precise", "none", "notApplicable", "notAvailable").
+  @async
+  String checkLocationAccuracy();
 }

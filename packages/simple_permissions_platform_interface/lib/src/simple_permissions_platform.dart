@@ -1,6 +1,7 @@
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'permission_grant.dart';
 import 'permission_result.dart';
+import 'location_accuracy_status.dart';
 import 'permissions/permission.dart';
 
 /// The platform interface for simple_permissions.
@@ -92,6 +93,13 @@ abstract class SimplePermissionsPlatform extends PlatformInterface {
   /// Useful when a permission has been permanently denied and the user
   /// must manually re-enable it.
   Future<bool> openAppSettings();
+
+  /// Check the current granted location accuracy level, if available.
+  ///
+  /// This is separate from [check] to avoid overloading [PermissionGrant]
+  /// with precision semantics.
+  Future<LocationAccuracyStatus> checkLocationAccuracy() async =>
+      LocationAccuracyStatus.notApplicable;
 }
 
 /// Default platform implementation for platforms without a native plugin.

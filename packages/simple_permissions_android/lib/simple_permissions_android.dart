@@ -109,6 +109,15 @@ class SimplePermissionsAndroid extends SimplePermissionsPlatform {
     return _isSupportedWithUnknownSdk(handler);
   }
 
+  Future<bool> _hasForegroundLocationGrant() async {
+    final foreground = await _api.checkPermissions([
+      AndroidPermission.fineLocation,
+      AndroidPermission.coarseLocation,
+    ]);
+    return foreground[AndroidPermission.fineLocation] == true ||
+        foreground[AndroidPermission.coarseLocation] == true;
+  }
+
   // ===========================================================================
   // v2 API — Permission sealed classes
   // ===========================================================================
@@ -143,6 +152,13 @@ class SimplePermissionsAndroid extends SimplePermissionsPlatform {
 
     if (!handler.isSupported(() => sdk)) {
       return PermissionGrant.notAvailable;
+    }
+
+    if (sdk >= 30 && resolved is BackgroundLocation) {
+      final hasForegroundGrant = await _hasForegroundLocationGrant();
+      if (!hasForegroundGrant) {
+        return PermissionGrant.denied;
+      }
     }
 
     return handler.request(_api);
@@ -223,11 +239,26 @@ class SimplePermissionsAndroid extends SimplePermissionsPlatform {
       final preCheck = await _api.checkPermissions(runtimePermissions);
       final permissionsToRequest = runtimePermissions
           .where((permission) => preCheck[permission] != true)
-          .toList();
+          .toSet();
+
+      if (sdk >= 30 &&
+          permissionsToRequest.contains(AndroidPermission.backgroundLocation)) {
+        final hasForegroundGrant = await _hasForegroundLocationGrant();
+        if (!hasForegroundGrant) {
+          permissionsToRequest.remove(AndroidPermission.backgroundLocation);
+          for (final entry in runtimeByOriginal.entries) {
+            if (entry.value == AndroidPermission.backgroundLocation) {
+              resolvedGrants[entry.key] = PermissionGrant.denied;
+            }
+          }
+        }
+      }
 
       Map<String, bool> requestResults = const {};
       if (permissionsToRequest.isNotEmpty) {
-        requestResults = await _api.requestPermissions(permissionsToRequest);
+        requestResults = await _api.requestPermissions(
+          permissionsToRequest.toList(),
+        );
       }
 
       final deniedPermissions = <String>{
@@ -242,6 +273,9 @@ class SimplePermissionsAndroid extends SimplePermissionsPlatform {
       }
 
       for (final entry in runtimeByOriginal.entries) {
+        if (resolvedGrants.containsKey(entry.key)) {
+          continue;
+        }
         final permission = entry.value;
         if (preCheck[permission] == true ||
             requestResults[permission] == true) {
@@ -283,6 +317,21 @@ class SimplePermissionsAndroid extends SimplePermissionsPlatform {
 
   @override
   Future<bool> openAppSettings() => _api.openAppSettings();
+
+  @override
+  Future<LocationAccuracyStatus> checkLocationAccuracy() async {
+    final checks = await _api.checkPermissions([
+      AndroidPermission.fineLocation,
+      AndroidPermission.coarseLocation,
+    ]);
+    if (checks[AndroidPermission.fineLocation] == true) {
+      return LocationAccuracyStatus.precise;
+    }
+    if (checks[AndroidPermission.coarseLocation] == true) {
+      return LocationAccuracyStatus.reduced;
+    }
+    return LocationAccuracyStatus.none;
+  }
 
   // ===========================================================================
   // VersionedPermission resolution

@@ -3,3 +3,6 @@ build/
 *.iml
 .idea/
 .dart_tool/
+pubspec.lock
+pubspec_overrides.yaml
+example/pubspec_overrides.yaml

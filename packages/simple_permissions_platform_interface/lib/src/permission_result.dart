@@ -14,8 +14,8 @@ class PermissionResult {
   /// Whether all permissions are in a satisfactory state.
   ///
   /// Treats [PermissionGrant.granted], [PermissionGrant.limited],
-  /// [PermissionGrant.notApplicable], and [PermissionGrant.provisional]
-  /// as "satisfied".
+  /// [PermissionGrant.notApplicable], [PermissionGrant.notAvailable], and
+  /// [PermissionGrant.provisional] as "satisfied".
   bool get isFullyGranted => permissions.values.every(_isSatisfied);
 
   /// Alias for [isFullyGranted].
@@ -57,6 +57,7 @@ class PermissionResult {
       grant == PermissionGrant.granted ||
       grant == PermissionGrant.limited ||
       grant == PermissionGrant.notApplicable ||
+      grant == PermissionGrant.notAvailable ||
       grant == PermissionGrant.provisional;
 
   static bool _isDenied(PermissionGrant grant) =>

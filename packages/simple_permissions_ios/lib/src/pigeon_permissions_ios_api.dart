@@ -22,4 +22,7 @@ class PigeonPermissionsIosApi implements PermissionsIosApi {
 
   @override
   Future<bool> openAppSettings() => _hostApi.openAppSettings();
+
+  @override
+  Future<String> checkLocationAccuracy() => _hostApi.checkLocationAccuracy();
 }

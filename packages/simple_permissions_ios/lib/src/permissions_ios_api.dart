@@ -20,4 +20,7 @@ abstract interface class PermissionsIosApi {
 
   /// Open this app's settings page in the Settings app.
   Future<bool> openAppSettings();
+
+  /// Check current location accuracy level on iOS.
+  Future<String> checkLocationAccuracy();
 }
