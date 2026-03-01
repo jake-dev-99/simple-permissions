@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
 import 'dart:async';
 
-import 'package:simple_permissions/simple_permissions.dart';
+import 'package:flutter/material.dart';
+import 'package:simple_permissions_native/simple_permissions.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,7 +17,7 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  Map<String, bool>? _permissions;
+  PermissionResult? _result;
   bool? _textingReady;
 
   @override
@@ -27,15 +27,17 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _checkPermissions() async {
-    final perms = await SimplePermissions.instance.checkPermissions(
-      Intention.texting.permissions,
+    final result = await SimplePermissions.instance.checkIntentionDetailed(
+      Intention.texting,
     );
-    final ready = await SimplePermissions.instance.check(Intention.texting);
+    final ready = await SimplePermissions.instance.checkIntention(
+      Intention.texting,
+    );
 
     if (!mounted) return;
 
     setState(() {
-      _permissions = perms;
+      _result = result;
       _textingReady = ready;
     });
   }
@@ -52,17 +54,42 @@ class _MyAppState extends State<MyApp> {
             children: [
               Text('Texting Ready: ${_textingReady ?? "checking..."}'),
               const SizedBox(height: 16),
-              const Text('Permissions:'),
-              if (_permissions != null)
-                ..._permissions!.entries.map(
-                  (e) => Text('  ${e.key.split('.').last}: ${e.value}'),
+              const Text(
+                'Permissions:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              if (_result != null)
+                ..._result!.permissions.entries.map(
+                  (e) => Padding(
+                    padding: const EdgeInsets.only(left: 8, top: 4),
+                    child: Text('${e.key.identifier}: ${e.value.name}'),
+                  ),
                 ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  final grant = await SimplePermissions.instance.check(
+                    ReadContacts(),
+                  );
+                  if (!mounted) return;
+                  messenger.showSnackBar(
+                    SnackBar(content: Text('Contacts: ${grant.name}')),
+                  );
+                },
+                child: const Text('Check Contacts'),
+              ),
             ],
           ),
         ),
         floatingActionButton: FloatingActionButton(
           onPressed: () async {
-            await SimplePermissions.instance.request(Intention.texting);
+            final result = await SimplePermissions.instance
+                .requestIntentionDetailed(Intention.texting);
+            if (!mounted) return;
+            if (result.requiresSettings) {
+              await SimplePermissions.instance.openAppSettings();
+            }
             await _checkPermissions();
           },
           child: const Icon(Icons.refresh),

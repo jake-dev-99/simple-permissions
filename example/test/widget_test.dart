@@ -1,27 +1,18 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:simple_permissions_native/simple_permissions.dart';
 
 import 'package:simple_permissions_example/main.dart';
 
 void main() {
-  testWidgets('Verify Platform version', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+  testWidgets('renders example title and permissions header', (
+    WidgetTester tester,
+  ) async {
+    await SimplePermissions.initialize();
     await tester.pumpWidget(const MyApp());
 
-    // Verify that platform version is retrieved.
-    expect(
-      find.byWidgetPredicate(
-        (Widget widget) => widget is Text &&
-                           widget.data!.startsWith('Running on:'),
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('Simple Permissions Example'), findsOneWidget);
+    expect(find.text('Permissions:'), findsOneWidget);
+    expect(find.byType(FloatingActionButton), findsOneWidget);
   });
 }
