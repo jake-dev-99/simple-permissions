@@ -1,0 +1,29 @@
+name: simple_permissions_macos
+description: macOS implementation for the simple_permissions federated plugin.
+version: 1.0.2
+homepage: https://github.com/simplezen/simple-permissions
+repository: https://github.com/simplezen/simple-permissions
+issue_tracker: https://github.com/simplezen/simple-permissions/issues
+
+environment:
+  sdk: ^3.6.0
+  flutter: '>=3.24.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  simple_permissions_platform_interface: ^1.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  pigeon: ^22.7.0
+
+flutter:
+  plugin:
+    implements: simple_permissions_native
+    platforms:
+      macos:
+        pluginClass: SimplePermissionsMacosPlugin
+        dartPluginClass: SimplePermissionsMacos

@@ -1,0 +1,20 @@
+name: simple_permissions_platform_interface
+description: Platform interface for the simple_permissions federated plugin.
+version: 1.0.2
+homepage: https://github.com/simplezen/simple-permissions
+repository: https://github.com/simplezen/simple-permissions
+issue_tracker: https://github.com/simplezen/simple-permissions/issues
+
+environment:
+  sdk: ^3.6.0
+  flutter: '>=3.24.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  plugin_platform_interface: ^2.1.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0

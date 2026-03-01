@@ -1,0 +1,537 @@
+// ignore_for_file: deprecated_member_use_from_same_package
+import 'package:flutter_test/flutter_test.dart';
+import 'package:plugin_platform_interface/plugin_platform_interface.dart';
+import 'package:simple_permissions_platform_interface/simple_permissions_platform_interface.dart';
+
+void main() {
+  final originalInstance = SimplePermissionsPlatform.instance;
+
+  group('SimplePermissionsPlatform', () {
+    tearDown(() {
+      SimplePermissionsPlatform.instance = originalInstance;
+    });
+
+    test('default instance is noop', () {
+      expect(originalInstance, isNotNull);
+    });
+
+    test('setting instance with correct token succeeds', () {
+      final custom = _GoodPlatform();
+      SimplePermissionsPlatform.instance = custom;
+      expect(SimplePermissionsPlatform.instance, same(custom));
+    });
+
+    test('MockPlatformInterfaceMixin bypasses token check', () {
+      final mock = _MockPlatform();
+      SimplePermissionsPlatform.instance = mock;
+      expect(SimplePermissionsPlatform.instance, same(mock));
+    });
+  });
+
+  // ===========================================================================
+  // v2 API — Noop platform behavior
+  // ===========================================================================
+
+  group('Noop platform v2 behavior', () {
+    final noop = originalInstance;
+
+    test('check returns granted for all permission types', () async {
+      final permissions = <Permission>[
+        const ReadContacts(),
+        const WriteContacts(),
+        const CameraAccess(),
+        const FineLocation(),
+        const PostNotifications(),
+        const SendSms(),
+        const DefaultSmsApp(),
+        const BatteryOptimizationExemption(),
+        const RecordAudio(),
+        const ReadCalendar(),
+        const BluetoothConnect(),
+        const BodySensors(),
+        const NearbyWifiDevices(),
+        const AppTrackingTransparency(),
+        const ReadHealth(),
+      ];
+
+      for (final p in permissions) {
+        final result = await noop.check(p);
+        expect(
+          result,
+          PermissionGrant.granted,
+          reason: '${p.identifier} should be granted on noop platform',
+        );
+      }
+    });
+
+    test('request returns granted for all permission types', () async {
+      final result = await noop.request(const ReadContacts());
+      expect(result, PermissionGrant.granted);
+    });
+
+    test('checkAll returns all granted', () async {
+      final result = await noop.checkAll([
+        const ReadContacts(),
+        const WriteContacts(),
+        const PostNotifications(),
+      ]);
+
+      expect(result, isA<PermissionResult>());
+      expect(result.permissions, hasLength(3));
+      expect(result.isFullyGranted, isTrue);
+    });
+
+    test('requestAll returns all granted', () async {
+      final result = await noop.requestAll([
+        const CameraAccess(),
+        const RecordAudio(),
+      ]);
+
+      expect(result.isFullyGranted, isTrue);
+      expect(result.hasDenial, isFalse);
+    });
+
+    test('isSupported returns true for all permissions', () {
+      expect(noop.isSupported(const ReadContacts()), isTrue);
+      expect(noop.isSupported(const AppTrackingTransparency()), isTrue);
+      expect(noop.isSupported(const DefaultSmsApp()), isTrue);
+    });
+
+    test('openAppSettings returns true', () async {
+      expect(await noop.openAppSettings(), isTrue);
+    });
+
+    test('VersionedPermission check returns granted', () async {
+      final result = await noop.check(const VersionedPermission.images());
+      expect(result, PermissionGrant.granted);
+    });
+  });
+
+  // ===========================================================================
+  // Permission sealed class hierarchy
+  // ===========================================================================
+
+  group('Permission sealed classes', () {
+    test('all concrete classes are const-constructible', () {
+      const permissions = <Permission>[
+        // Camera
+        CameraAccess(),
+        // Location
+        CoarseLocation(), FineLocation(), BackgroundLocation(),
+        // Contacts
+        ReadContacts(), WriteContacts(),
+        // Storage
+        ReadExternalStorage(), ReadMediaImages(), ReadMediaVideo(),
+        ReadMediaAudio(), ReadMediaVisualUserSelected(),
+        // Phone
+        ReadPhoneState(), ReadPhoneNumbers(), MakeCalls(), AnswerCalls(),
+        ManageOwnCalls(), ReadCallLog(), WriteCallLog(),
+        // Messaging
+        SendSms(), ReadSms(), ReceiveSms(), ReceiveMms(), ReceiveWapPush(),
+        // Bluetooth
+        BluetoothConnect(), BluetoothScan(), BluetoothAdvertise(),
+        BluetoothLegacy(), BluetoothAdminLegacy(),
+        // Calendar
+        ReadCalendar(), WriteCalendar(),
+        // Notification
+        PostNotifications(),
+        // Microphone
+        RecordAudio(),
+        // Sensor
+        BodySensors(), ActivityRecognition(),
+        // System
+        BatteryOptimizationExemption(), ScheduleExactAlarm(),
+        RequestInstallPackages(), SystemAlertWindow(),
+        // Role
+        DefaultSmsApp(), DefaultDialerApp(), DefaultBrowserApp(),
+        DefaultAssistantApp(),
+        // Wifi
+        NearbyWifiDevices(),
+        // Tracking
+        AppTrackingTransparency(),
+        // Health
+        ReadHealth(), WriteHealth(),
+      ];
+
+      // Every permission has a non-empty identifier
+      for (final p in permissions) {
+        expect(p.identifier, isNotEmpty, reason: '$p should have an identifier');
+      }
+
+      // All identifiers are unique
+      final identifiers = permissions.map((p) => p.identifier).toSet();
+      expect(identifiers, hasLength(permissions.length),
+          reason: 'All identifiers should be unique');
+    });
+
+    test('const identity equality', () {
+      expect(const ReadContacts(), same(const ReadContacts()));
+      expect(const ReadContacts(), isNot(same(const WriteContacts())));
+      expect(const ReadContacts().hashCode, const ReadContacts().hashCode);
+    });
+
+    test('toString includes type and identifier', () {
+      expect(
+        const ReadContacts().toString(),
+        contains('ReadContacts'),
+      );
+      expect(
+        const ReadContacts().toString(),
+        contains('read_contacts'),
+      );
+    });
+
+    test('sealed class hierarchy is correct', () {
+      expect(const CameraAccess(), isA<CameraPermission>());
+      expect(const CameraAccess(), isA<Permission>());
+      expect(const FineLocation(), isA<LocationPermission>());
+      expect(const ReadContacts(), isA<ContactsPermission>());
+      expect(const ReadMediaImages(), isA<StoragePermission>());
+      expect(const SendSms(), isA<MessagingPermission>());
+      expect(const ReadPhoneState(), isA<PhonePermission>());
+      expect(const BluetoothConnect(), isA<BluetoothPermission>());
+      expect(const ReadCalendar(), isA<CalendarPermission>());
+      expect(const PostNotifications(), isA<NotificationPermission>());
+      expect(const RecordAudio(), isA<MicrophonePermission>());
+      expect(const BodySensors(), isA<SensorPermission>());
+      expect(const BatteryOptimizationExemption(), isA<SystemPermission>());
+      expect(const DefaultSmsApp(), isA<AppRole>());
+      expect(const NearbyWifiDevices(), isA<WifiPermission>());
+      expect(const AppTrackingTransparency(), isA<TrackingPermission>());
+      expect(const ReadHealth(), isA<HealthPermission>());
+    });
+  });
+
+  // ===========================================================================
+  // VersionedPermission
+  // ===========================================================================
+
+  group('VersionedPermission', () {
+    test('factory constructors exist for all versioned pairs', () {
+      const versioned = <VersionedPermission>[
+        VersionedPermission.images(),
+        VersionedPermission.video(),
+        VersionedPermission.audio(),
+        VersionedPermission.bluetoothConnect(),
+        VersionedPermission.bluetoothScan(),
+      ];
+
+      for (final v in versioned) {
+        expect(v.identifier, isNotEmpty);
+        expect(v.variants, isNotEmpty);
+        expect(v.variants.length, greaterThanOrEqualTo(2),
+            reason: '${v.identifier} should have at least 2 variants');
+      }
+    });
+
+    test('images() has correct variants', () {
+      const v = VersionedPermission.images();
+      expect(v.variants[0].permission, isA<ReadMediaImages>());
+      expect(v.variants[0].minApiLevel, 33);
+      expect(v.variants[1].permission, isA<ReadExternalStorage>());
+      expect(v.variants[1].maxApiLevel, 32);
+    });
+
+    test('video() has correct variants', () {
+      const v = VersionedPermission.video();
+      expect(v.variants[0].permission, isA<ReadMediaVideo>());
+      expect(v.variants[0].minApiLevel, 33);
+      expect(v.variants[1].permission, isA<ReadExternalStorage>());
+      expect(v.variants[1].maxApiLevel, 32);
+    });
+
+    test('audio() has correct variants', () {
+      const v = VersionedPermission.audio();
+      expect(v.variants[0].permission, isA<ReadMediaAudio>());
+      expect(v.variants[0].minApiLevel, 33);
+      expect(v.variants[1].permission, isA<ReadExternalStorage>());
+      expect(v.variants[1].maxApiLevel, 32);
+    });
+
+    test('bluetoothConnect() has correct variants', () {
+      const v = VersionedPermission.bluetoothConnect();
+      expect(v.variants[0].permission, isA<BluetoothConnect>());
+      expect(v.variants[0].minApiLevel, 31);
+      expect(v.variants[1].permission, isA<BluetoothLegacy>());
+      expect(v.variants[1].maxApiLevel, 30);
+    });
+
+    test('bluetoothScan() has correct variants', () {
+      const v = VersionedPermission.bluetoothScan();
+      expect(v.variants[0].permission, isA<BluetoothScan>());
+      expect(v.variants[0].minApiLevel, 31);
+      expect(v.variants[1].permission, isA<BluetoothAdminLegacy>());
+      expect(v.variants[1].maxApiLevel, 30);
+    });
+
+    test('VersionedPermission extends Permission', () {
+      expect(const VersionedPermission.images(), isA<Permission>());
+    });
+  });
+
+  // ===========================================================================
+  // PermissionResult
+  // ===========================================================================
+
+  group('PermissionResult', () {
+    test('isFullyGranted when all granted', () {
+      const result = PermissionResult({
+        ReadContacts(): PermissionGrant.granted,
+        WriteContacts(): PermissionGrant.granted,
+      });
+      expect(result.isFullyGranted, isTrue);
+      expect(result.isReady, isTrue);
+      expect(result.hasDenial, isFalse);
+      expect(result.hasPermanentDenial, isFalse);
+      expect(result.requiresSettings, isFalse);
+      expect(result.denied, isEmpty);
+    });
+
+    test('isFullyGranted treats notApplicable as satisfied', () {
+      const result = PermissionResult({
+        SendSms(): PermissionGrant.notApplicable,
+        ReadMediaImages(): PermissionGrant.limited,
+        ReadContacts(): PermissionGrant.granted,
+      });
+      expect(result.isFullyGranted, isTrue);
+    });
+
+    test('isFullyGranted treats provisional as satisfied', () {
+      const result = PermissionResult({
+        PostNotifications(): PermissionGrant.provisional,
+      });
+      expect(result.isFullyGranted, isTrue);
+    });
+
+    test('restricted is treated as denial', () {
+      const result = PermissionResult({
+        ReadContacts(): PermissionGrant.restricted,
+      });
+      expect(result.isFullyGranted, isFalse);
+      expect(result.hasDenial, isTrue);
+      expect(result.denied, [const ReadContacts()]);
+    });
+
+    test('not fully granted when any denied', () {
+      const result = PermissionResult({
+        ReadContacts(): PermissionGrant.granted,
+        WriteContacts(): PermissionGrant.denied,
+      });
+      expect(result.isFullyGranted, isFalse);
+      expect(result.hasDenial, isTrue);
+      expect(result.hasPermanentDenial, isFalse);
+      expect(result.denied, [const WriteContacts()]);
+    });
+
+    test('detects permanent denial', () {
+      const result = PermissionResult({
+        ReadContacts(): PermissionGrant.permanentlyDenied,
+        WriteContacts(): PermissionGrant.denied,
+      });
+      expect(result.isFullyGranted, isFalse);
+      expect(result.hasPermanentDenial, isTrue);
+      expect(result.requiresSettings, isTrue);
+      expect(result.permanentlyDenied, [const ReadContacts()]);
+      expect(result.denied, hasLength(2));
+    });
+
+    test('unavailable lists notAvailable permissions', () {
+      const result = PermissionResult({
+        PostNotifications(): PermissionGrant.notAvailable,
+        ReadContacts(): PermissionGrant.granted,
+      });
+      expect(result.unavailable, [const PostNotifications()]);
+    });
+
+    test('subscript operator looks up grant', () {
+      const result = PermissionResult({
+        ReadContacts(): PermissionGrant.granted,
+        WriteContacts(): PermissionGrant.denied,
+      });
+      expect(result[const ReadContacts()], PermissionGrant.granted);
+      expect(result[const WriteContacts()], PermissionGrant.denied);
+      expect(result[const CameraAccess()], isNull);
+    });
+
+    test('toString contains PermissionResult', () {
+      const result = PermissionResult({
+        ReadContacts(): PermissionGrant.granted,
+      });
+      expect(result.toString(), contains('PermissionResult'));
+    });
+
+    test('value equality and hashCode are stable for equivalent maps', () {
+      const a = PermissionResult({
+        ReadContacts(): PermissionGrant.granted,
+        ReadMediaImages(): PermissionGrant.limited,
+      });
+      const b = PermissionResult({
+        ReadMediaImages(): PermissionGrant.limited,
+        ReadContacts(): PermissionGrant.granted,
+      });
+
+      expect(a, equals(b));
+      expect(a.hashCode, equals(b.hashCode));
+    });
+  });
+
+  // ===========================================================================
+  // Intention
+  // ===========================================================================
+
+  group('Intention', () {
+    test('built-in intentions have correct permission types', () {
+      expect(
+        Intention.texting.permissions,
+        containsAll([
+          isA<DefaultSmsApp>(),
+          isA<SendSms>(),
+          isA<ReadSms>(),
+          isA<ReceiveSms>(),
+        ]),
+      );
+
+      expect(
+        Intention.calling.permissions,
+        containsAll([
+          isA<DefaultDialerApp>(),
+          isA<MakeCalls>(),
+          isA<AnswerCalls>(),
+        ]),
+      );
+
+      expect(
+        Intention.contacts.permissions,
+        containsAll([isA<ReadContacts>(), isA<WriteContacts>()]),
+      );
+
+      expect(
+        Intention.notifications.permissions,
+        contains(isA<PostNotifications>()),
+      );
+
+      expect(
+        Intention.location.permissions,
+        containsAll([isA<FineLocation>(), isA<CoarseLocation>()]),
+      );
+
+      expect(
+        Intention.camera.permissions,
+        contains(isA<CameraAccess>()),
+      );
+
+      expect(
+        Intention.microphone.permissions,
+        contains(isA<RecordAudio>()),
+      );
+    });
+
+    test('versioned intentions use VersionedPermission', () {
+      expect(
+        Intention.mediaImages.permissions,
+        contains(isA<VersionedPermission>()),
+      );
+      expect(
+        Intention.mediaVideo.permissions,
+        contains(isA<VersionedPermission>()),
+      );
+      expect(
+        Intention.mediaAudio.permissions,
+        contains(isA<VersionedPermission>()),
+      );
+    });
+
+    test('combine deduplicates permissions by identifier', () {
+      final combined = Intention.combine('test', [
+        Intention.contacts,
+        const Intention('also_contacts', [ReadContacts(), CameraAccess()]),
+      ]);
+
+      expect(combined.name, 'test');
+      // ReadContacts appears in both but should only be included once
+      final identifiers =
+          combined.permissions.map((p) => p.identifier).toList();
+      expect(
+        identifiers.where((id) => id == 'read_contacts').length,
+        1,
+      );
+      // But CameraAccess and WriteContacts should both be present
+      expect(identifiers, contains('write_contacts'));
+      expect(identifiers, contains('camera_access'));
+    });
+
+    test('custom Intention construction', () {
+      const custom = Intention('my_feature', [
+        CameraAccess(),
+        RecordAudio(),
+        FineLocation(),
+      ]);
+      expect(custom.name, 'my_feature');
+      expect(custom.permissions, hasLength(3));
+    });
+
+    test('toString includes name and count', () {
+      expect(
+        Intention.texting.toString(),
+        contains('texting'),
+      );
+    });
+  });
+
+  // ===========================================================================
+  // PermissionGrant enum
+  // ===========================================================================
+
+  group('PermissionGrant', () {
+    test('has 8 values', () {
+      expect(PermissionGrant.values, hasLength(8));
+    });
+
+    test('has expected values', () {
+      expect(
+        PermissionGrant.values,
+        containsAll([
+          PermissionGrant.granted,
+          PermissionGrant.denied,
+          PermissionGrant.permanentlyDenied,
+          PermissionGrant.restricted,
+          PermissionGrant.limited,
+          PermissionGrant.notApplicable,
+          PermissionGrant.notAvailable,
+          PermissionGrant.provisional,
+        ]),
+      );
+    });
+  });
+}
+
+class _GoodPlatform extends SimplePermissionsPlatform {
+  _GoodPlatform() : super();
+
+  // v2 API
+  @override
+  Future<PermissionGrant> check(Permission p) async =>
+      PermissionGrant.granted;
+  @override
+  Future<PermissionGrant> request(Permission p) async =>
+      PermissionGrant.granted;
+  @override
+  bool isSupported(Permission p) => true;
+  @override
+  Future<bool> openAppSettings() async => true;
+}
+
+class _MockPlatform extends SimplePermissionsPlatform
+    with MockPlatformInterfaceMixin {
+  // v2 API
+  @override
+  Future<PermissionGrant> check(Permission p) async =>
+      PermissionGrant.granted;
+  @override
+  Future<PermissionGrant> request(Permission p) async =>
+      PermissionGrant.granted;
+  @override
+  bool isSupported(Permission p) => true;
+  @override
+  Future<bool> openAppSettings() async => true;
+}

@@ -1,0 +1,76 @@
+group = "io.simplezen.simple_permissions_android"
+version = "1.0-SNAPSHOT"
+
+buildscript {
+    ext.kotlin_version = "1.8.22"
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath("com.android.tools.build:gradle:8.7.0")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version")
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+configurations {
+    mockitoAgent
+}
+
+apply plugin: "com.android.library"
+apply plugin: "kotlin-android"
+
+android {
+    namespace = "io.simplezen.simple_permissions_android"
+
+    compileSdk = 35
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_17
+    }
+
+    sourceSets {
+        main.java.srcDirs += "src/main/kotlin"
+        test.java.srcDirs += "src/test/kotlin"
+    }
+
+    defaultConfig {
+        minSdk = 30
+    }
+
+    dependencies {
+        testImplementation("org.mockito:mockito-core:5.14.2")
+        mockitoAgent("net.bytebuddy:byte-buddy-agent:1.15.4")
+        testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.2")
+        testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
+        testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+        unitTests.all {
+            useJUnitPlatform()
+            jvmArgs "-javaagent:${configurations.mockitoAgent.singleFile.absolutePath}"
+            jvmArgs "-Dnet.bytebuddy.experimental=true"
+
+            testLogging {
+               events "passed", "skipped", "failed", "standardOut", "standardError"
+               outputs.upToDateWhen {false}
+               showStandardStreams = true
+            }
+        }
+    }
+}
