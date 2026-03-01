@@ -23,7 +23,9 @@ class IosPermissionMapping {
 /// - Photos: read_media_images, read_media_video
 /// - Notifications: post_notifications
 /// - Location: coarse_location, fine_location, background_location
-/// - Calendar: read_calendar, write_calendar
+/// - Calendar: read_calendar, write_calendar, read_reminders, write_reminders
+/// - Bluetooth: bluetooth_connect, bluetooth_scan, bluetooth_advertise
+/// - Speech: speech_recognition
 /// - Health: read_health, write_health
 /// - Sensors: body_sensors, activity_recognition
 /// - Tracking: app_tracking_transparency
@@ -53,6 +55,16 @@ const Map<Type, IosPermissionMapping> _iosRegistry = {
   // Calendar
   ReadCalendar: IosPermissionMapping('read_calendar'),
   WriteCalendar: IosPermissionMapping('write_calendar'),
+  ReadReminders: IosPermissionMapping('read_reminders'),
+  WriteReminders: IosPermissionMapping('write_reminders'),
+
+  // Bluetooth
+  BluetoothConnect: IosPermissionMapping('bluetooth_connect'),
+  BluetoothScan: IosPermissionMapping('bluetooth_scan'),
+  BluetoothAdvertise: IosPermissionMapping('bluetooth_advertise'),
+
+  // Speech
+  SpeechRecognition: IosPermissionMapping('speech_recognition'),
 
   // Health (HealthKit)
   ReadHealth: IosPermissionMapping('read_health'),

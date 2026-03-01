@@ -146,7 +146,16 @@ void main() {
       expect(mockApi.log.first.identifier, 'read_calendar');
     });
 
-    test('returns notApplicable for mobile-only permissions without calling API',
+    test('routes reminders through API', () async {
+      mockApi.checkResult = 'granted';
+      final result = await plugin.check(const ReadReminders());
+
+      expect(result, PermissionGrant.granted);
+      expect(mockApi.log.first.identifier, 'read_reminders');
+    });
+
+    test(
+        'returns notApplicable for mobile-only permissions without calling API',
         () async {
       final mobileOnly = <Permission>[
         const SendSms(),
@@ -223,6 +232,8 @@ void main() {
       expect(plugin.isSupported(const FineLocation()), isTrue);
       expect(plugin.isSupported(const ReadCalendar()), isTrue);
       expect(plugin.isSupported(const WriteCalendar()), isTrue);
+      expect(plugin.isSupported(const ReadReminders()), isTrue);
+      expect(plugin.isSupported(const WriteReminders()), isTrue);
     });
 
     test('returns false for mobile-only permissions', () {
@@ -280,7 +291,8 @@ void main() {
       expect(mockApi.log.first.identifier, 'read_media_video');
     });
 
-    test('resolves audio() — falls back to ReadMediaAudio (not registered on macOS)',
+    test(
+        'resolves audio() — falls back to ReadMediaAudio (not registered on macOS)',
         () async {
       mockApi.checkResult = 'granted';
       // VersionedPermission.audio() has only API-constrained variants.
@@ -317,8 +329,7 @@ void main() {
         expect(
           result,
           entry.value,
-          reason:
-              'Wire value "${entry.key}" should parse to ${entry.value}',
+          reason: 'Wire value "${entry.key}" should parse to ${entry.value}',
         );
       });
     }
@@ -331,7 +342,7 @@ void main() {
   });
 
   // ===========================================================================
-  // Registry coverage — ensure all 11 types are mapped
+  // Registry coverage — ensure all 13 types are mapped
   // ===========================================================================
 
   group('macOS registry coverage', () {
@@ -347,6 +358,8 @@ void main() {
       const FineLocation(),
       const ReadCalendar(),
       const WriteCalendar(),
+      const ReadReminders(),
+      const WriteReminders(),
     ];
 
     for (final perm in registeredPermissions) {
@@ -356,20 +369,19 @@ void main() {
 
         expect(result, PermissionGrant.granted);
         expect(mockApi.log, hasLength(1),
-            reason:
-                '${perm.runtimeType} should make exactly one API call');
+            reason: '${perm.runtimeType} should make exactly one API call');
         expect(mockApi.log.first.identifier, perm.identifier,
             reason:
                 '${perm.runtimeType} should use its identifier "${perm.identifier}"');
       });
     }
 
-    test('exactly 11 permissions are registered', () {
+    test('exactly 13 permissions are registered', () {
       var count = 0;
       for (final perm in registeredPermissions) {
         if (plugin.isSupported(perm)) count++;
       }
-      expect(count, 11);
+      expect(count, 13);
     });
   });
 }

@@ -19,6 +19,7 @@ part 'notification.dart';
 part 'phone.dart';
 part 'role.dart';
 part 'sensor.dart';
+part 'speech.dart';
 part 'storage.dart';
 part 'system.dart';
 part 'tracking.dart';

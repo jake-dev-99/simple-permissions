@@ -4,12 +4,13 @@
 /// and determining support for one logical permission. The [AndroidPermissionRegistry]
 /// maps sealed [Permission] types to concrete handler instances.
 ///
-/// There are four handler flavors:
+/// There are three handler flavors:
 /// - [RuntimePermissionHandler] — standard `ActivityCompat.requestPermissions` flow
 /// - [RoleHandler] — `RoleManager.requestRole` flow
 /// - [SystemSettingHandler] — system settings intent flow (battery opt, etc.)
-/// - [VersionedHandler] — delegates to the correct inner handler for the OS version
 library;
+
+import 'dart:developer' as developer;
 
 import 'package:simple_permissions_platform_interface/simple_permissions_platform_interface.dart';
 
@@ -18,7 +19,6 @@ import '../permissions_api.dart';
 part 'runtime_permission_handler.dart';
 part 'role_handler.dart';
 part 'system_setting_handler.dart';
-part 'versioned_handler.dart';
 
 /// Signature for a function that provides the current Android SDK version.
 ///

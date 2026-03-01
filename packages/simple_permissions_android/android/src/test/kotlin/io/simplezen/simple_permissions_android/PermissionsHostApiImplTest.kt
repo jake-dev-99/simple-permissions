@@ -1,10 +1,13 @@
 package io.simplezen.simple_permissions_android
 
 import android.app.Activity
+import android.app.AlarmManager
 import android.app.role.RoleManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.PowerManager
+import android.provider.Settings
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -12,7 +15,9 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentMatchers.any
+import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.ArgumentMatchers.eq
+import org.mockito.ArgumentCaptor
 import org.mockito.Mockito.doThrow
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.times
@@ -25,9 +30,12 @@ internal class PermissionsHostApiImplTest {
     val context: Context = mock(Context::class.java)
     val roleManager: RoleManager = mock(RoleManager::class.java)
     val powerManager: PowerManager = mock(PowerManager::class.java)
+    val alarmManager: AlarmManager = mock(AlarmManager::class.java)
+    val packageManager: PackageManager = mock(PackageManager::class.java)
     val activity: Activity = mock(Activity::class.java)
     val activityBinding: ActivityPluginBinding = mock(ActivityPluginBinding::class.java)
 
+    var sdkInt: Int = 34
     var providedActivity: Activity? = activity
     var providedActivityBinding: ActivityPluginBinding? = activityBinding
 
@@ -35,12 +43,15 @@ internal class PermissionsHostApiImplTest {
       context = context,
       activityProvider = { providedActivity },
       activityBindingProvider = { providedActivityBinding },
+      sdkIntProvider = { sdkInt },
     )
 
     init {
       `when`(context.packageName).thenReturn("io.simplezen.simple_permissions")
+      `when`(context.packageManager).thenReturn(packageManager)
       `when`(context.getSystemService(Context.ROLE_SERVICE)).thenReturn(roleManager)
       `when`(context.getSystemService(Context.POWER_SERVICE)).thenReturn(powerManager)
+      `when`(context.getSystemService(Context.ALARM_SERVICE)).thenReturn(alarmManager)
       `when`(powerManager.isIgnoringBatteryOptimizations(context.packageName)).thenReturn(false)
     }
   }
@@ -201,6 +212,8 @@ internal class PermissionsHostApiImplTest {
   @Test
   fun onDetachedFromActivity_failsPendingCallbacks() {
     val h = Harness()
+    `when`(h.alarmManager.canScheduleExactAlarms()).thenReturn(false)
+    `when`(h.packageManager.canRequestPackageInstalls()).thenReturn(false)
     val requestIntent = Intent("role-request")
     `when`(h.roleManager.isRoleAvailable("android.app.role.SMS")).thenReturn(true)
     `when`(h.roleManager.isRoleHeld("android.app.role.SMS")).thenReturn(false)
@@ -212,11 +225,118 @@ internal class PermissionsHostApiImplTest {
     var batteryError: Throwable? = null
     h.subject.requestIgnoreBatteryOptimizations { batteryError = it.exceptionOrNull() }
 
+    var scheduleError: Throwable? = null
+    h.subject.requestScheduleExactAlarms { scheduleError = it.exceptionOrNull() }
+
+    var installError: Throwable? = null
+    h.subject.requestInstallPackages { installError = it.exceptionOrNull() }
+
+    var overlayError: Throwable? = null
+    h.subject.requestDrawOverlays { overlayError = it.exceptionOrNull() }
+
+    var manageExternalError: Throwable? = null
+    h.subject.requestManageExternalStorage { manageExternalError = it.exceptionOrNull() }
+
     h.subject.onDetachedFromActivity()
 
     assertNotNull(roleError)
     assertEquals("Activity detached", roleError?.message)
     assertNotNull(batteryError)
     assertEquals("Activity detached", batteryError?.message)
+    assertNotNull(scheduleError)
+    assertEquals("Activity detached", scheduleError?.message)
+    assertNotNull(installError)
+    assertEquals("Activity detached", installError?.message)
+    assertNotNull(overlayError)
+    assertEquals("Activity detached", overlayError?.message)
+    assertNotNull(manageExternalError)
+    assertEquals("Activity detached", manageExternalError?.message)
+  }
+
+  @Test
+  fun requestScheduleExactAlarms_launchesIntentWithPackageUri() {
+    val h = Harness()
+    `when`(h.alarmManager.canScheduleExactAlarms()).thenReturn(false)
+
+    var callbackValue: Boolean? = null
+    h.subject.requestScheduleExactAlarms { callbackValue = it.getOrNull() }
+
+    val intentCaptor = ArgumentCaptor.forClass(Intent::class.java)
+    verify(h.activity).startActivityForResult(intentCaptor.capture(), eq(9004))
+    val intent = intentCaptor.value
+    assertEquals(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, intent.action)
+    assertEquals("package:io.simplezen.simple_permissions", intent.dataString)
+    assertEquals(null, callbackValue)
+  }
+
+  @Test
+  fun checkPermissions_respectsVersionedApplicabilityGuards() {
+    data class Case(
+      val permission: String,
+      val sdkInt: Int,
+      val expectedGranted: Boolean,
+    )
+
+    val cases = listOf(
+      Case("android.permission.BLUETOOTH_CONNECT", 30, true),
+      Case("android.permission.BLUETOOTH_CONNECT", 31, false),
+      Case("android.permission.BLUETOOTH", 31, true),
+      Case("android.permission.BLUETOOTH", 30, false),
+      Case("android.permission.NEARBY_WIFI_DEVICES", 32, true),
+      Case("android.permission.NEARBY_WIFI_DEVICES", 33, false),
+      Case("android.permission.ACTIVITY_RECOGNITION", 28, true),
+      Case("android.permission.ACTIVITY_RECOGNITION", 29, false),
+      Case("android.permission.READ_MEDIA_VISUAL_USER_SELECTED", 33, true),
+      Case("android.permission.READ_MEDIA_VISUAL_USER_SELECTED", 34, false),
+    )
+
+    for (case in cases) {
+      val h = Harness()
+      h.sdkInt = case.sdkInt
+      `when`(h.context.checkPermission(eq(case.permission), anyInt(), anyInt()))
+        .thenReturn(PackageManager.PERMISSION_DENIED)
+      val result = h.subject.checkPermissions(listOf(case.permission))
+      assertEquals(case.expectedGranted, result[case.permission])
+    }
+  }
+
+  @Test
+  fun requestManageExternalStorage_launchesIntentWithPackageUri() {
+    val h = Harness()
+    h.sdkInt = 30
+
+    var callbackValue: Boolean? = null
+    h.subject.requestManageExternalStorage { callbackValue = it.getOrNull() }
+
+    val intentCaptor = ArgumentCaptor.forClass(Intent::class.java)
+    verify(h.activity).startActivityForResult(intentCaptor.capture(), eq(9007))
+    val intent = intentCaptor.value
+    assertEquals(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION, intent.action)
+    assertEquals("package:io.simplezen.simple_permissions", intent.dataString)
+    assertEquals(null, callbackValue)
+  }
+
+  @Test
+  fun requestManageExternalStorage_returnsRequestInProgressError_whenPending() {
+    val h = Harness()
+    h.sdkInt = 30
+    h.subject.requestManageExternalStorage { }
+
+    var errorCode: String? = null
+    h.subject.requestManageExternalStorage {
+      errorCode = (it.exceptionOrNull() as? FlutterError)?.code
+    }
+
+    assertEquals("request-in-progress", errorCode)
+  }
+
+  @Test
+  fun canManageExternalStorage_returnsTrueBelowApi30() {
+    val h = Harness()
+    h.sdkInt = 29
+
+    val result = h.subject.canManageExternalStorage()
+
+    assertTrue(result)
   }
 }

@@ -38,4 +38,35 @@ class PigeonPermissionsApi implements PermissionsApi {
 
   @override
   Future<bool> openAppSettings() => _hostApi.openAppSettings();
+
+  @override
+  Future<bool> canScheduleExactAlarms() => _hostApi.canScheduleExactAlarms();
+
+  @override
+  Future<bool> requestScheduleExactAlarms() =>
+      _hostApi.requestScheduleExactAlarms();
+
+  @override
+  Future<bool> canRequestInstallPackages() =>
+      _hostApi.canRequestInstallPackages();
+
+  @override
+  Future<bool> requestInstallPackages() => _hostApi.requestInstallPackages();
+
+  @override
+  Future<bool> canDrawOverlays() => _hostApi.canDrawOverlays();
+
+  @override
+  Future<bool> requestDrawOverlays() => _hostApi.requestDrawOverlays();
+
+  @override
+  Future<bool> canManageExternalStorage() =>
+      _hostApi.canManageExternalStorage();
+
+  @override
+  Future<bool> requestManageExternalStorage() =>
+      _hostApi.requestManageExternalStorage();
+
+  @override
+  Future<int> getSdkVersion() => _hostApi.getSdkVersion();
 }

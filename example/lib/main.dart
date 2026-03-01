@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:simple_permissions_native/simple_permissions.dart';
+import 'package:simple_permissions_native/simple_permissions_native.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await SimplePermissions.initialize();
+  await SimplePermissionsNative.initialize();
   runApp(const MyApp());
 }
 
@@ -27,10 +27,10 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> _checkPermissions() async {
-    final result = await SimplePermissions.instance.checkIntentionDetailed(
+    final result = await SimplePermissionsNative.instance.checkIntentionDetailed(
       Intention.texting,
     );
-    final ready = await SimplePermissions.instance.checkIntention(
+    final ready = await SimplePermissionsNative.instance.checkIntention(
       Intention.texting,
     );
 
@@ -69,7 +69,7 @@ class _MyAppState extends State<MyApp> {
               ElevatedButton(
                 onPressed: () async {
                   final messenger = ScaffoldMessenger.of(context);
-                  final grant = await SimplePermissions.instance.check(
+                  final grant = await SimplePermissionsNative.instance.check(
                     ReadContacts(),
                   );
                   if (!mounted) return;
@@ -84,11 +84,11 @@ class _MyAppState extends State<MyApp> {
         ),
         floatingActionButton: FloatingActionButton(
           onPressed: () async {
-            final result = await SimplePermissions.instance
+            final result = await SimplePermissionsNative.instance
                 .requestIntentionDetailed(Intention.texting);
             if (!mounted) return;
             if (result.requiresSettings) {
-              await SimplePermissions.instance.openAppSettings();
+              await SimplePermissionsNative.instance.openAppSettings();
             }
             await _checkPermissions();
           },

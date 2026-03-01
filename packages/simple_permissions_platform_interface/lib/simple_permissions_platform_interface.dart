@@ -6,3 +6,4 @@ export 'src/permission_grant.dart';
 export 'src/permission_result.dart';
 export 'src/intention.dart';
 export 'src/simple_permissions_platform.dart';
+export 'src/darwin_permission_utils.dart';

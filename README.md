@@ -27,7 +27,7 @@ dependencies:
 ## Quick Start
 
 ```dart
-import 'package:simple_permissions_native/simple_permissions.dart';
+import 'package:simple_permissions_native/simple_permissions_native.dart';
 
 // Initialize once at app startup
 await SimplePermissions.initialize();
@@ -169,6 +169,9 @@ include usage description keys in `ios/Runner/Info.plist`:
 | `canReadContacts` / `canWriteContacts` | `NSContactsUsageDescription` |
 | `canReadMediaImages` / `canReadMediaVideo` | `NSPhotoLibraryUsageDescription` |
 | `canReadMediaAudio` | `NSMicrophoneUsageDescription` |
+| Bluetooth permission checks/requests | `NSBluetoothAlwaysUsageDescription` |
+| Speech recognition permission checks/requests | `NSSpeechRecognitionUsageDescription` |
+| Calendar + reminders | `NSCalendarsUsageDescription`, `NSRemindersUsageDescription` |
 | `canPostNotifications` | _(none required)_ |
 
 ```xml
@@ -188,9 +191,18 @@ include usage description keys in `ios/Runner/Info.plist`:
 - Android API-level normalization is built in:
   `READ_EXTERNAL_STORAGE` → not required on API 33+;
   `READ_MEDIA_*` / `POST_NOTIFICATIONS` → not required below API 33.
+- Android background location requires a two-step flow on API 30+:
+  request foreground (`ACCESS_FINE_LOCATION` or `ACCESS_COARSE_LOCATION`)
+  first, then request `ACCESS_BACKGROUND_LOCATION` separately.
 - iOS returns `PermissionGrant.notApplicable` for Android-only capabilities
   (roles, battery, SMS send/receive).
 - Other unsupported platforms use the noop fallback and return `granted`.
+
+## Known Limitations
+
+- HealthKit authorization is checked through a representative proxy type
+  (`stepCount`). A granted status confirms HealthKit access is available, but
+  does not guarantee every specific HealthKit type your app may request.
 
 ## Architecture
 

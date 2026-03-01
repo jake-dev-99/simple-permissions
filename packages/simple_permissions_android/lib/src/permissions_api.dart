@@ -33,4 +33,31 @@ abstract interface class PermissionsApi {
 
   /// Open the system app-settings page for this app.
   Future<bool> openAppSettings();
+
+  /// Whether the host can schedule exact alarms (API 31+ semantics).
+  Future<bool> canScheduleExactAlarms();
+
+  /// Request permission to schedule exact alarms.
+  Future<bool> requestScheduleExactAlarms();
+
+  /// Whether the host can install packages from unknown sources (API 26+).
+  Future<bool> canRequestInstallPackages();
+
+  /// Request the install-packages permission via settings screen.
+  Future<bool> requestInstallPackages();
+
+  /// Whether the host can draw overlays on top of other apps (API 23+).
+  Future<bool> canDrawOverlays();
+
+  /// Request overlay permission through system settings.
+  Future<bool> requestDrawOverlays();
+
+  /// Whether the host has MANAGE_EXTERNAL_STORAGE access (API 30+).
+  Future<bool> canManageExternalStorage();
+
+  /// Request MANAGE_EXTERNAL_STORAGE through system settings.
+  Future<bool> requestManageExternalStorage();
+
+  /// Reads the current Android API level reported by the host.
+  Future<int> getSdkVersion();
 }

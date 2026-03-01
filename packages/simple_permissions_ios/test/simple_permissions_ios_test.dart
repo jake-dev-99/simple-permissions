@@ -146,6 +146,30 @@ void main() {
       expect(mockApi.log.first.identifier, 'read_calendar');
     });
 
+    test('routes reminders through API', () async {
+      mockApi.checkResult = 'granted';
+      final result = await plugin.check(const ReadReminders());
+
+      expect(result, PermissionGrant.granted);
+      expect(mockApi.log.first.identifier, 'read_reminders');
+    });
+
+    test('routes bluetooth through API', () async {
+      mockApi.checkResult = 'granted';
+      final result = await plugin.check(const BluetoothScan());
+
+      expect(result, PermissionGrant.granted);
+      expect(mockApi.log.first.identifier, 'bluetooth_scan');
+    });
+
+    test('routes speech through API', () async {
+      mockApi.checkResult = 'denied';
+      final result = await plugin.check(const SpeechRecognition());
+
+      expect(result, PermissionGrant.denied);
+      expect(mockApi.log.first.identifier, 'speech_recognition');
+    });
+
     test('routes health through API', () async {
       mockApi.checkResult = 'notAvailable';
       final result = await plugin.check(const ReadHealth());
@@ -178,7 +202,8 @@ void main() {
       expect(mockApi.log.first.identifier, 'app_tracking_transparency');
     });
 
-    test('returns notApplicable for Android-only permissions without calling API',
+    test(
+        'returns notApplicable for Android-only permissions without calling API',
         () async {
       // Android SMS/telephony/phone concepts — not applicable on iOS
       final androidOnly = <Permission>[
@@ -244,6 +269,9 @@ void main() {
       expect(plugin.isSupported(const PostNotifications()), isTrue);
       expect(plugin.isSupported(const FineLocation()), isTrue);
       expect(plugin.isSupported(const ReadCalendar()), isTrue);
+      expect(plugin.isSupported(const ReadReminders()), isTrue);
+      expect(plugin.isSupported(const BluetoothConnect()), isTrue);
+      expect(plugin.isSupported(const SpeechRecognition()), isTrue);
       expect(plugin.isSupported(const ReadHealth()), isTrue);
       expect(plugin.isSupported(const BodySensors()), isTrue);
       expect(plugin.isSupported(const AppTrackingTransparency()), isTrue);
@@ -300,7 +328,8 @@ void main() {
       expect(mockApi.log.first.identifier, 'read_media_video');
     });
 
-    test('resolves audio() — falls back to ReadMediaAudio (not registered on iOS)',
+    test(
+        'resolves audio() — falls back to ReadMediaAudio (not registered on iOS)',
         () async {
       mockApi.checkResult = 'granted';
       // VersionedPermission.audio() has only API-constrained variants.
@@ -337,8 +366,7 @@ void main() {
         expect(
           result,
           entry.value,
-          reason:
-              'Wire value "${entry.key}" should parse to ${entry.value}',
+          reason: 'Wire value "${entry.key}" should parse to ${entry.value}',
         );
       });
     }
@@ -351,7 +379,7 @@ void main() {
   });
 
   // ===========================================================================
-  // Registry coverage — ensure all 17 types are mapped
+  // Registry coverage — ensure all 23 types are mapped
   // ===========================================================================
 
   group('iOS registry coverage', () {
@@ -368,6 +396,12 @@ void main() {
       const BackgroundLocation(),
       const ReadCalendar(),
       const WriteCalendar(),
+      const ReadReminders(),
+      const WriteReminders(),
+      const BluetoothConnect(),
+      const BluetoothScan(),
+      const BluetoothAdvertise(),
+      const SpeechRecognition(),
       const ReadHealth(),
       const WriteHealth(),
       const BodySensors(),
@@ -382,20 +416,19 @@ void main() {
 
         expect(result, PermissionGrant.granted);
         expect(mockApi.log, hasLength(1),
-            reason:
-                '${perm.runtimeType} should make exactly one API call');
+            reason: '${perm.runtimeType} should make exactly one API call');
         expect(mockApi.log.first.identifier, perm.identifier,
             reason:
                 '${perm.runtimeType} should use its identifier "${perm.identifier}"');
       });
     }
 
-    test('exactly 17 permissions are registered', () {
+    test('exactly 23 permissions are registered', () {
       var count = 0;
       for (final perm in registeredPermissions) {
         if (plugin.isSupported(perm)) count++;
       }
-      expect(count, 17);
+      expect(count, 23);
     });
   });
 }

@@ -134,6 +134,8 @@ private func buildHandlerRegistry() -> [String: PermissionHandler] {
     // Calendar
     "read_calendar": CalendarHandler(entityType: .event),
     "write_calendar": CalendarHandler(entityType: .event),
+    "read_reminders": CalendarHandler(entityType: .reminder),
+    "write_reminders": CalendarHandler(entityType: .reminder),
   ]
 }
 
@@ -482,9 +484,25 @@ private class CalendarHandler: PermissionHandler {
       completion(GrantWire.restricted.rawValue)
     case .notDetermined:
       if #available(macOS 14.0, *) {
-        EKEventStore().requestFullAccessToEvents { granted, _ in
-          ensureMainThread {
-            completion(granted ? GrantWire.granted.rawValue : GrantWire.denied.rawValue)
+        let store = EKEventStore()
+        switch entityType {
+        case .event:
+          store.requestFullAccessToEvents { granted, _ in
+            ensureMainThread {
+              completion(granted ? GrantWire.granted.rawValue : GrantWire.denied.rawValue)
+            }
+          }
+        case .reminder:
+          store.requestFullAccessToReminders { granted, _ in
+            ensureMainThread {
+              completion(granted ? GrantWire.granted.rawValue : GrantWire.denied.rawValue)
+            }
+          }
+        @unknown default:
+          store.requestAccess(to: entityType) { granted, _ in
+            ensureMainThread {
+              completion(granted ? GrantWire.granted.rawValue : GrantWire.denied.rawValue)
+            }
           }
         }
       } else {

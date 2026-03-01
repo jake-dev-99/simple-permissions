@@ -12,27 +12,53 @@ import 'package:pigeon/pigeon.dart';
     ),
   ),
 )
-
 @HostApi()
 abstract class PermissionsHostApi {
-        Map<String, bool> checkPermissions(List<String> permissions);
+  Map<String, bool> checkPermissions(List<String> permissions);
 
-          @async
+  @async
   Map<String, bool> requestPermissions(List<String> permissions);
 
-            bool isRoleHeld(String roleId);
+  bool isRoleHeld(String roleId);
 
-        @async
+  @async
   bool requestRole(String roleId);
 
-          bool isIgnoringBatteryOptimizations();
+  bool isIgnoringBatteryOptimizations();
 
-        @async
+  @async
   bool requestIgnoreBatteryOptimizations();
 
-        Map<String, bool> shouldShowRequestPermissionRationale(
+  /// Whether the host can schedule exact alarms (API 31+).
+  bool canScheduleExactAlarms();
+
+  @async
+  bool requestScheduleExactAlarms();
+
+  /// Whether the host may install packages from unknown sources (API 26+).
+  bool canRequestInstallPackages();
+
+  @async
+  bool requestInstallPackages();
+
+  /// Whether the host can draw overlays on top of other apps (API 23+).
+  bool canDrawOverlays();
+
+  @async
+  bool requestDrawOverlays();
+
+  /// Whether the host has MANAGE_EXTERNAL_STORAGE access (API 30+).
+  bool canManageExternalStorage();
+
+  @async
+  bool requestManageExternalStorage();
+
+  Map<String, bool> shouldShowRequestPermissionRationale(
     List<String> permissions,
   );
 
-        bool openAppSettings();
+  /// Returns the current Android SDK level (Build.VERSION.SDK_INT).
+  int getSdkVersion();
+
+  bool openAppSettings();
 }

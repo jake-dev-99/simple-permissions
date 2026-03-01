@@ -1,12 +1,14 @@
 package io.simplezen.simple_permissions_android
 
 import android.app.Activity
+import android.app.AlarmManager
 import android.app.role.RoleManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
@@ -24,7 +26,8 @@ import io.flutter.plugin.common.PluginRegistry
 class PermissionsHostApiImpl(
     private val context: Context,
     private val activityProvider: () -> Activity?,
-    private val activityBindingProvider: () -> ActivityPluginBinding?
+    private val activityBindingProvider: () -> ActivityPluginBinding?,
+    private val sdkIntProvider: () -> Int = { Build.VERSION.SDK_INT }
 ) : PermissionsHostApi, PluginRegistry.ActivityResultListener {
 
     companion object {
@@ -32,6 +35,10 @@ class PermissionsHostApiImpl(
         private const val REQUEST_CODE_PERMISSIONS = 9001
         private const val REQUEST_CODE_ROLE = 9002
         private const val REQUEST_CODE_BATTERY = 9003
+        private const val REQUEST_CODE_SCHEDULE_EXACT_ALARM = 9004
+        private const val REQUEST_CODE_INSTALL_PACKAGES = 9005
+        private const val REQUEST_CODE_OVERLAY = 9006
+        private const val REQUEST_CODE_MANAGE_EXTERNAL_STORAGE = 9007
     }
 
     private val roleManager: RoleManager by lazy {
@@ -42,10 +49,18 @@ class PermissionsHostApiImpl(
         context.getSystemService(Context.POWER_SERVICE) as PowerManager
     }
 
+    private val alarmManager: AlarmManager by lazy {
+        context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+    }
+
     // Pending callbacks for async operations
     private var pendingPermissionsCallback: ((Result<Map<String, Boolean>>) -> Unit)? = null
     private var pendingRoleCallback: ((Result<Boolean>) -> Unit)? = null
     private var pendingBatteryCallback: ((Result<Boolean>) -> Unit)? = null
+    private var pendingScheduleExactAlarmCallback: ((Result<Boolean>) -> Unit)? = null
+    private var pendingInstallPackagesCallback: ((Result<Boolean>) -> Unit)? = null
+    private var pendingOverlayCallback: ((Result<Boolean>) -> Unit)? = null
+    private var pendingManageExternalStorageCallback: ((Result<Boolean>) -> Unit)? = null
     private var pendingPermissions: Array<String>? = null
     private var pendingPermissionResult: MutableMap<String, Boolean>? = null
     private var pendingRole: String? = null
@@ -60,6 +75,10 @@ class PermissionsHostApiImpl(
         pendingPermissionsCallback?.invoke(Result.failure(Exception("Activity detached")))
         pendingRoleCallback?.invoke(Result.failure(Exception("Activity detached")))
         pendingBatteryCallback?.invoke(Result.failure(Exception("Activity detached")))
+        pendingScheduleExactAlarmCallback?.invoke(Result.failure(Exception("Activity detached")))
+        pendingInstallPackagesCallback?.invoke(Result.failure(Exception("Activity detached")))
+        pendingOverlayCallback?.invoke(Result.failure(Exception("Activity detached")))
+        pendingManageExternalStorageCallback?.invoke(Result.failure(Exception("Activity detached")))
         clearPendingState()
     }
 
@@ -67,6 +86,10 @@ class PermissionsHostApiImpl(
         pendingPermissionsCallback = null
         pendingRoleCallback = null
         pendingBatteryCallback = null
+        pendingScheduleExactAlarmCallback = null
+        pendingInstallPackagesCallback = null
+        pendingOverlayCallback = null
+        pendingManageExternalStorageCallback = null
         pendingPermissions = null
         pendingPermissionResult = null
         pendingRole = null
@@ -229,6 +252,167 @@ class PermissionsHostApiImpl(
         activity.startActivityForResult(intent, REQUEST_CODE_BATTERY)
     }
 
+    override fun canScheduleExactAlarms(): Boolean {
+        if (sdkIntProvider() < Build.VERSION_CODES.S) return true
+        return alarmManager.canScheduleExactAlarms()
+    }
+
+    override fun requestScheduleExactAlarms(callback: (Result<Boolean>) -> Unit) {
+        if (pendingScheduleExactAlarmCallback != null) {
+            callback(
+                Result.failure(
+                    FlutterError(
+                        "request-in-progress",
+                        "A schedule-exact-alarm request is already in progress.",
+                        "requestScheduleExactAlarms"
+                    )
+                )
+            )
+            return
+        }
+
+        if (canScheduleExactAlarms()) {
+            callback(Result.success(true))
+            return
+        }
+
+        val activity = activityProvider()
+        if (activity == null) {
+            Log.w(TAG, "requestScheduleExactAlarms called without attached activity")
+            callback(Result.success(false))
+            return
+        }
+
+        if (sdkIntProvider() < Build.VERSION_CODES.S) {
+            callback(Result.success(true))
+            return
+        }
+
+        pendingScheduleExactAlarmCallback = callback
+        val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+            data = Uri.parse("package:${context.packageName}")
+        }
+        activity.startActivityForResult(intent, REQUEST_CODE_SCHEDULE_EXACT_ALARM)
+    }
+
+    override fun canRequestInstallPackages(): Boolean {
+        if (sdkIntProvider() < Build.VERSION_CODES.O) return true
+        return context.packageManager.canRequestPackageInstalls()
+    }
+
+    override fun requestInstallPackages(callback: (Result<Boolean>) -> Unit) {
+        if (pendingInstallPackagesCallback != null) {
+            callback(
+                Result.failure(
+                    FlutterError(
+                        "request-in-progress",
+                        "An install-packages request is already in progress.",
+                        "requestInstallPackages"
+                    )
+                )
+            )
+            return
+        }
+
+        if (canRequestInstallPackages()) {
+            callback(Result.success(true))
+            return
+        }
+
+        val activity = activityProvider()
+        if (activity == null) {
+            Log.w(TAG, "requestInstallPackages called without attached activity")
+            callback(Result.success(false))
+            return
+        }
+
+        pendingInstallPackagesCallback = callback
+        val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+            data = Uri.parse("package:${context.packageName}")
+        }
+        activity.startActivityForResult(intent, REQUEST_CODE_INSTALL_PACKAGES)
+    }
+
+    override fun canDrawOverlays(): Boolean {
+        if (sdkIntProvider() < Build.VERSION_CODES.M) return true
+        return Settings.canDrawOverlays(context)
+    }
+
+    override fun requestDrawOverlays(callback: (Result<Boolean>) -> Unit) {
+        if (pendingOverlayCallback != null) {
+            callback(
+                Result.failure(
+                    FlutterError(
+                        "request-in-progress",
+                        "An overlay request is already in progress.",
+                        "requestDrawOverlays"
+                    )
+                )
+            )
+            return
+        }
+
+        if (canDrawOverlays()) {
+            callback(Result.success(true))
+            return
+        }
+
+        val activity = activityProvider()
+        if (activity == null) {
+            Log.w(TAG, "requestDrawOverlays called without attached activity")
+            callback(Result.success(false))
+            return
+        }
+
+        pendingOverlayCallback = callback
+        val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
+            data = Uri.parse("package:${context.packageName}")
+        }
+        activity.startActivityForResult(intent, REQUEST_CODE_OVERLAY)
+    }
+
+    override fun canManageExternalStorage(): Boolean {
+        if (sdkIntProvider() < Build.VERSION_CODES.R) return true
+        return Environment.isExternalStorageManager()
+    }
+
+    override fun requestManageExternalStorage(callback: (Result<Boolean>) -> Unit) {
+        if (pendingManageExternalStorageCallback != null) {
+            callback(
+                Result.failure(
+                    FlutterError(
+                        "request-in-progress",
+                        "A manage-external-storage request is already in progress.",
+                        "requestManageExternalStorage"
+                    )
+                )
+            )
+            return
+        }
+
+        if (canManageExternalStorage()) {
+            callback(Result.success(true))
+            return
+        }
+
+        val activity = activityProvider()
+        if (activity == null) {
+            Log.w(TAG, "requestManageExternalStorage called without attached activity")
+            callback(Result.success(false))
+            return
+        }
+
+        pendingManageExternalStorageCallback = callback
+        val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION).apply {
+            data = Uri.parse("package:${context.packageName}")
+        }
+        activity.startActivityForResult(intent, REQUEST_CODE_MANAGE_EXTERNAL_STORAGE)
+    }
+
+    override fun getSdkVersion(): Long {
+        return Build.VERSION.SDK_INT.toLong()
+    }
+
     override fun shouldShowRequestPermissionRationale(
         permissions: List<String>
     ): Map<String, Boolean> {
@@ -264,6 +448,22 @@ class PermissionsHostApiImpl(
             }
             REQUEST_CODE_BATTERY -> {
                 handleBatteryResult()
+                true
+            }
+            REQUEST_CODE_SCHEDULE_EXACT_ALARM -> {
+                handleScheduleExactAlarmResult()
+                true
+            }
+            REQUEST_CODE_INSTALL_PACKAGES -> {
+                handleInstallPackagesResult()
+                true
+            }
+            REQUEST_CODE_OVERLAY -> {
+                handleOverlayResult()
+                true
+            }
+            REQUEST_CODE_MANAGE_EXTERNAL_STORAGE -> {
+                handleManageExternalStorageResult()
                 true
             }
             else -> false
@@ -303,12 +503,24 @@ class PermissionsHostApiImpl(
     private fun isPermissionApplicable(permission: String): Boolean {
         return when (permission) {
             "android.permission.READ_EXTERNAL_STORAGE" ->
-                Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+                sdkIntProvider() < Build.VERSION_CODES.TIRAMISU
             "android.permission.READ_MEDIA_IMAGES",
             "android.permission.READ_MEDIA_VIDEO",
             "android.permission.READ_MEDIA_AUDIO",
+            "android.permission.NEARBY_WIFI_DEVICES",
             "android.permission.POST_NOTIFICATIONS" ->
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                sdkIntProvider() >= Build.VERSION_CODES.TIRAMISU
+            "android.permission.READ_MEDIA_VISUAL_USER_SELECTED" ->
+                sdkIntProvider() >= 34
+            "android.permission.BLUETOOTH_CONNECT",
+            "android.permission.BLUETOOTH_SCAN",
+            "android.permission.BLUETOOTH_ADVERTISE" ->
+                sdkIntProvider() >= Build.VERSION_CODES.S
+            "android.permission.BLUETOOTH",
+            "android.permission.BLUETOOTH_ADMIN" ->
+                sdkIntProvider() <= Build.VERSION_CODES.R
+            "android.permission.ACTIVITY_RECOGNITION" ->
+                sdkIntProvider() >= Build.VERSION_CODES.Q
             else -> true
         }
     }
@@ -332,5 +544,29 @@ class PermissionsHostApiImpl(
         val callback = pendingBatteryCallback ?: return
         callback(Result.success(isIgnoringBatteryOptimizations()))
         pendingBatteryCallback = null
+    }
+
+    private fun handleScheduleExactAlarmResult() {
+        val callback = pendingScheduleExactAlarmCallback ?: return
+        callback(Result.success(canScheduleExactAlarms()))
+        pendingScheduleExactAlarmCallback = null
+    }
+
+    private fun handleInstallPackagesResult() {
+        val callback = pendingInstallPackagesCallback ?: return
+        callback(Result.success(canRequestInstallPackages()))
+        pendingInstallPackagesCallback = null
+    }
+
+    private fun handleOverlayResult() {
+        val callback = pendingOverlayCallback ?: return
+        callback(Result.success(canDrawOverlays()))
+        pendingOverlayCallback = null
+    }
+
+    private fun handleManageExternalStorageResult() {
+        val callback = pendingManageExternalStorageCallback ?: return
+        callback(Result.success(canManageExternalStorage()))
+        pendingManageExternalStorageCallback = null
     }
 }

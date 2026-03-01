@@ -9,7 +9,7 @@ part of 'permission.dart';
 ///
 /// ```dart
 /// // Automatically picks the right permission for the device's OS version
-/// final result = await SimplePermissions.instance.request(
+/// final result = await SimplePermissionsNative.instance.request(
 ///   VersionedPermission.images(),
 /// );
 /// ```

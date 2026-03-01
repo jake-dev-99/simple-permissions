@@ -23,7 +23,7 @@ class MacosPermissionMapping {
 /// - Photos: read_media_images, read_media_video
 /// - Notifications: post_notifications
 /// - Location: coarse_location, fine_location
-/// - Calendar: read_calendar, write_calendar
+/// - Calendar: read_calendar, write_calendar, read_reminders, write_reminders
 ///
 /// Not applicable on macOS (iOS-only or Android-only):
 /// - BackgroundLocation, Health, BodySensors, ActivityRecognition,
@@ -53,6 +53,8 @@ const Map<Type, MacosPermissionMapping> _macosRegistry = {
   // Calendar (EventKit)
   ReadCalendar: MacosPermissionMapping('read_calendar'),
   WriteCalendar: MacosPermissionMapping('write_calendar'),
+  ReadReminders: MacosPermissionMapping('read_reminders'),
+  WriteReminders: MacosPermissionMapping('write_reminders'),
 };
 
 /// Look up the macOS mapping for a [Permission] type.

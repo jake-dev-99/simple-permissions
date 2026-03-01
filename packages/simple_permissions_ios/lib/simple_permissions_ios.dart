@@ -39,7 +39,7 @@ class SimplePermissionsIos extends SimplePermissionsPlatform {
 
   @override
   Future<PermissionGrant> check(Permission permission) async {
-    final resolved = _resolve(permission);
+    final resolved = resolveVersionedForDarwin(permission);
     final mapping = iosPermissionMapping(resolved.runtimeType);
 
     if (mapping == null) {
@@ -47,12 +47,12 @@ class SimplePermissionsIos extends SimplePermissionsPlatform {
     }
 
     final wire = await _api.checkPermission(mapping.identifier);
-    return _permissionGrantFromWire(wire);
+    return permissionGrantFromDarwinWire(wire);
   }
 
   @override
   Future<PermissionGrant> request(Permission permission) async {
-    final resolved = _resolve(permission);
+    final resolved = resolveVersionedForDarwin(permission);
     final mapping = iosPermissionMapping(resolved.runtimeType);
 
     if (mapping == null) {
@@ -60,72 +60,15 @@ class SimplePermissionsIos extends SimplePermissionsPlatform {
     }
 
     final wire = await _api.requestPermission(mapping.identifier);
-    return _permissionGrantFromWire(wire);
+    return permissionGrantFromDarwinWire(wire);
   }
 
   @override
   bool isSupported(Permission permission) {
-    final resolved = _resolve(permission);
+    final resolved = resolveVersionedForDarwin(permission);
     return isIosPermissionRegistered(resolved.runtimeType);
   }
 
   @override
   Future<bool> openAppSettings() => _api.openAppSettings();
-
-  // ===========================================================================
-  // VersionedPermission resolution
-  // ===========================================================================
-
-  /// If [permission] is a [VersionedPermission], resolve it.
-  ///
-  /// iOS doesn't have the same API-level version splits as Android, but
-  /// [VersionedPermission.images()] for example should still resolve to
-  /// [ReadMediaImages] since iOS uses PHPhotoLibrary for that concept.
-  /// We pick the first variant that has no minApiLevel constraint (iOS
-  /// variants don't use API levels) or fall through to the first variant.
-  Permission _resolve(Permission permission) {
-    if (permission is! VersionedPermission) return permission;
-
-    // For iOS, pick the first variant without API level constraints,
-    // or the first variant overall. The iOS registry will then determine
-    // if that permission type is supported.
-    for (final variant in permission.variants) {
-      if (variant.minApiLevel == null && variant.maxApiLevel == null) {
-        return variant.permission;
-      }
-    }
-    // Fall back to the first variant.
-    if (permission.variants.isNotEmpty) {
-      return permission.variants.first.permission;
-    }
-    return permission;
-  }
-
-  // ===========================================================================
-  // Wire parsing
-  // ===========================================================================
-
-  PermissionGrant _permissionGrantFromWire(String? value) {
-    switch (value) {
-      case 'granted':
-        return PermissionGrant.granted;
-      case 'denied':
-        return PermissionGrant.denied;
-      case 'permanentlyDenied':
-        return PermissionGrant.permanentlyDenied;
-      case 'restricted':
-        return PermissionGrant.restricted;
-      case 'limited':
-        return PermissionGrant.limited;
-      case 'notAvailable':
-        return PermissionGrant.notAvailable;
-      case 'provisional':
-        return PermissionGrant.provisional;
-      case 'notApplicable':
-      case null:
-        return PermissionGrant.notApplicable;
-      default:
-        return PermissionGrant.denied;
-    }
-  }
 }

@@ -8,7 +8,7 @@ import 'permissions/permissions.dart';
 ///
 /// ```dart
 /// // Request everything needed for SMS messaging
-/// final result = await SimplePermissions.instance.requestIntention(
+/// final result = await SimplePermissionsNative.instance.requestIntention(
 ///   Intention.texting,
 /// );
 /// ```
@@ -112,7 +112,10 @@ class Intention {
     PostNotifications(),
   ]);
 
-  /// Location — fine and coarse location.
+  /// Location — foreground-only (fine + coarse) location.
+  ///
+  /// Background location is intentionally excluded. On Android 30+, request
+  /// foreground location first, then request [BackgroundLocation] separately.
   static const location = Intention('location', [
     FineLocation(),
     CoarseLocation(),

@@ -45,9 +45,12 @@ void main() {
         const SendSms(),
         const DefaultSmsApp(),
         const BatteryOptimizationExemption(),
+        const ManageExternalStorage(),
         const RecordAudio(),
         const ReadCalendar(),
+        const ReadReminders(),
         const BluetoothConnect(),
+        const SpeechRecognition(),
         const BodySensors(),
         const NearbyWifiDevices(),
         const AppTrackingTransparency(),
@@ -132,7 +135,7 @@ void main() {
         BluetoothConnect(), BluetoothScan(), BluetoothAdvertise(),
         BluetoothLegacy(), BluetoothAdminLegacy(),
         // Calendar
-        ReadCalendar(), WriteCalendar(),
+        ReadCalendar(), WriteCalendar(), ReadReminders(), WriteReminders(),
         // Notification
         PostNotifications(),
         // Microphone
@@ -141,7 +144,9 @@ void main() {
         BodySensors(), ActivityRecognition(),
         // System
         BatteryOptimizationExemption(), ScheduleExactAlarm(),
-        RequestInstallPackages(), SystemAlertWindow(),
+        RequestInstallPackages(), SystemAlertWindow(), ManageExternalStorage(),
+        // Speech
+        SpeechRecognition(),
         // Role
         DefaultSmsApp(), DefaultDialerApp(), DefaultBrowserApp(),
         DefaultAssistantApp(),
@@ -155,7 +160,8 @@ void main() {
 
       // Every permission has a non-empty identifier
       for (final p in permissions) {
-        expect(p.identifier, isNotEmpty, reason: '$p should have an identifier');
+        expect(p.identifier, isNotEmpty,
+            reason: '$p should have an identifier');
       }
 
       // All identifiers are unique
@@ -191,10 +197,12 @@ void main() {
       expect(const ReadPhoneState(), isA<PhonePermission>());
       expect(const BluetoothConnect(), isA<BluetoothPermission>());
       expect(const ReadCalendar(), isA<CalendarPermission>());
+      expect(const ReadReminders(), isA<CalendarPermission>());
       expect(const PostNotifications(), isA<NotificationPermission>());
       expect(const RecordAudio(), isA<MicrophonePermission>());
       expect(const BodySensors(), isA<SensorPermission>());
       expect(const BatteryOptimizationExemption(), isA<SystemPermission>());
+      expect(const SpeechRecognition(), isA<SpeechPermission>());
       expect(const DefaultSmsApp(), isA<AppRole>());
       expect(const NearbyWifiDevices(), isA<WifiPermission>());
       expect(const AppTrackingTransparency(), isA<TrackingPermission>());
@@ -375,6 +383,49 @@ void main() {
     });
   });
 
+  group('Darwin permission utilities', () {
+    test('permissionGrantFromDarwinWire maps all known wire values', () {
+      expect(
+        permissionGrantFromDarwinWire('granted'),
+        PermissionGrant.granted,
+      );
+      expect(permissionGrantFromDarwinWire('denied'), PermissionGrant.denied);
+      expect(
+        permissionGrantFromDarwinWire('permanentlyDenied'),
+        PermissionGrant.permanentlyDenied,
+      );
+      expect(
+        permissionGrantFromDarwinWire('restricted'),
+        PermissionGrant.restricted,
+      );
+      expect(permissionGrantFromDarwinWire('limited'), PermissionGrant.limited);
+      expect(
+        permissionGrantFromDarwinWire('notAvailable'),
+        PermissionGrant.notAvailable,
+      );
+      expect(
+        permissionGrantFromDarwinWire('provisional'),
+        PermissionGrant.provisional,
+      );
+      expect(
+        permissionGrantFromDarwinWire('notApplicable'),
+        PermissionGrant.notApplicable,
+      );
+      expect(
+          permissionGrantFromDarwinWire(null), PermissionGrant.notApplicable);
+      expect(
+        permissionGrantFromDarwinWire('unexpected'),
+        PermissionGrant.denied,
+      );
+    });
+
+    test('resolveVersionedForDarwin picks unconstrained first variant', () {
+      final resolved =
+          resolveVersionedForDarwin(const VersionedPermission.images());
+      expect(resolved, isA<ReadMediaImages>());
+    });
+  });
+
   // ===========================================================================
   // Intention
   // ===========================================================================
@@ -510,8 +561,7 @@ class _GoodPlatform extends SimplePermissionsPlatform {
 
   // v2 API
   @override
-  Future<PermissionGrant> check(Permission p) async =>
-      PermissionGrant.granted;
+  Future<PermissionGrant> check(Permission p) async => PermissionGrant.granted;
   @override
   Future<PermissionGrant> request(Permission p) async =>
       PermissionGrant.granted;
@@ -525,8 +575,7 @@ class _MockPlatform extends SimplePermissionsPlatform
     with MockPlatformInterfaceMixin {
   // v2 API
   @override
-  Future<PermissionGrant> check(Permission p) async =>
-      PermissionGrant.granted;
+  Future<PermissionGrant> check(Permission p) async => PermissionGrant.granted;
   @override
   Future<PermissionGrant> request(Permission p) async =>
       PermissionGrant.granted;

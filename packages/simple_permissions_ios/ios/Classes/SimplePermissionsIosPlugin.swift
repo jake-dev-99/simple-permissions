@@ -1,4 +1,6 @@
 import AVFoundation
+import AppTrackingTransparency
+import CoreBluetooth
 import Contacts
 import CoreLocation
 import CoreMotion
@@ -6,6 +8,7 @@ import EventKit
 import Flutter
 import HealthKit
 import Photos
+import Speech
 import UIKit
 import UserNotifications
 
@@ -127,6 +130,16 @@ private func buildHandlerRegistry() -> [String: PermissionHandler] {
     // Calendar
     "read_calendar": CalendarHandler(entityType: .event),
     "write_calendar": CalendarHandler(entityType: .event),
+    "read_reminders": CalendarHandler(entityType: .reminder),
+    "write_reminders": CalendarHandler(entityType: .reminder),
+
+    // Bluetooth (iOS 13+ authorization model shared across BLE operations)
+    "bluetooth_connect": BluetoothHandler(),
+    "bluetooth_scan": BluetoothHandler(),
+    "bluetooth_advertise": BluetoothHandler(),
+
+    // Speech recognition
+    "speech_recognition": SpeechHandler(),
 
     // Health
     "read_health": HealthHandler(),
@@ -489,9 +502,25 @@ private class CalendarHandler: PermissionHandler {
       completion(GrantWire.restricted.rawValue)
     case .notDetermined:
       if #available(iOS 17.0, *) {
-        EKEventStore().requestFullAccessToEvents { granted, _ in
-          ensureMainThread {
-            completion(granted ? GrantWire.granted.rawValue : GrantWire.denied.rawValue)
+        let store = EKEventStore()
+        switch entityType {
+        case .event:
+          store.requestFullAccessToEvents { granted, _ in
+            ensureMainThread {
+              completion(granted ? GrantWire.granted.rawValue : GrantWire.denied.rawValue)
+            }
+          }
+        case .reminder:
+          store.requestFullAccessToReminders { granted, _ in
+            ensureMainThread {
+              completion(granted ? GrantWire.granted.rawValue : GrantWire.denied.rawValue)
+            }
+          }
+        @unknown default:
+          store.requestAccess(to: entityType) { granted, _ in
+            ensureMainThread {
+              completion(granted ? GrantWire.granted.rawValue : GrantWire.denied.rawValue)
+            }
           }
         }
       } else {
@@ -518,6 +547,119 @@ private class CalendarHandler: PermissionHandler {
   }
 }
 
+// MARK: - Bluetooth Handler
+
+private class BluetoothHandler: NSObject, PermissionHandler, CBCentralManagerDelegate {
+  private var centralManager: CBCentralManager?
+  private var pendingCompletion: ((String) -> Void)?
+
+  var isSupported: Bool {
+    if #available(iOS 13.0, *) {
+      return true
+    }
+    return false
+  }
+
+  func check(completion: @escaping (String) -> Void) {
+    guard #available(iOS 13.0, *) else {
+      completion(GrantWire.notAvailable.rawValue)
+      return
+    }
+    completion(mapBluetoothStatus(CBManager.authorization))
+  }
+
+  func request(completion: @escaping (String) -> Void) {
+    guard #available(iOS 13.0, *) else {
+      completion(GrantWire.notAvailable.rawValue)
+      return
+    }
+
+    let status = CBManager.authorization
+    switch status {
+    case .allowedAlways:
+      completion(GrantWire.granted.rawValue)
+    case .denied:
+      completion(GrantWire.permanentlyDenied.rawValue)
+    case .restricted:
+      completion(GrantWire.restricted.rawValue)
+    case .notDetermined:
+      ensureMainThread {
+        self.pendingCompletion = completion
+        self.centralManager = CBCentralManager(delegate: self, queue: nil)
+      }
+    @unknown default:
+      completion(GrantWire.denied.rawValue)
+    }
+  }
+
+  func centralManagerDidUpdateState(_ central: CBCentralManager) {
+    guard let completion = pendingCompletion else { return }
+    guard #available(iOS 13.0, *) else {
+      completion(GrantWire.notAvailable.rawValue)
+      pendingCompletion = nil
+      centralManager = nil
+      return
+    }
+
+    let status = CBManager.authorization
+    guard status != .notDetermined else { return }
+    completion(mapBluetoothStatus(status))
+    pendingCompletion = nil
+    centralManager = nil
+  }
+
+  @available(iOS 13.0, *)
+  private func mapBluetoothStatus(_ status: CBManagerAuthorization) -> String {
+    switch status {
+    case .allowedAlways: return GrantWire.granted.rawValue
+    case .denied: return GrantWire.permanentlyDenied.rawValue
+    case .restricted: return GrantWire.restricted.rawValue
+    case .notDetermined: return GrantWire.denied.rawValue
+    @unknown default: return GrantWire.denied.rawValue
+    }
+  }
+}
+
+// MARK: - Speech Handler
+
+private class SpeechHandler: PermissionHandler {
+  var isSupported: Bool { true }
+
+  func check(completion: @escaping (String) -> Void) {
+    completion(mapSpeechStatus(SFSpeechRecognizer.authorizationStatus()))
+  }
+
+  func request(completion: @escaping (String) -> Void) {
+    let status = SFSpeechRecognizer.authorizationStatus()
+    switch status {
+    case .authorized:
+      completion(GrantWire.granted.rawValue)
+    case .denied:
+      completion(GrantWire.permanentlyDenied.rawValue)
+    case .restricted:
+      completion(GrantWire.restricted.rawValue)
+    case .notDetermined:
+      SFSpeechRecognizer.requestAuthorization { newStatus in
+        ensureMainThread {
+          completion(self.mapSpeechStatus(newStatus))
+        }
+      }
+    @unknown default:
+      completion(GrantWire.denied.rawValue)
+    }
+  }
+
+  private func mapSpeechStatus(_ status: SFSpeechRecognizerAuthorizationStatus) -> String {
+    switch status {
+    case .authorized: return GrantWire.granted.rawValue
+    case .notDetermined: return GrantWire.denied.rawValue
+    case .denied: return GrantWire.permanentlyDenied.rawValue
+    case .restricted: return GrantWire.restricted.rawValue
+    @unknown default: return GrantWire.denied.rawValue
+    }
+  }
+}
+
 // MARK: - Health Handler
 
 private class HealthHandler: PermissionHandler {
@@ -530,8 +672,10 @@ private class HealthHandler: PermissionHandler {
       completion(GrantWire.notAvailable.rawValue)
       return
     }
-    // HealthKit authorization is per-type. Use step count as a representative.
+    // HealthKit authorization is per-type. We use step count as a proxy here,
+    // which indicates general HealthKit availability but not every type.
     let store = HKHealthStore()
+    // Requesting the proxy type keeps this plugin API generic.
     let stepType = HKQuantityType.quantityType(forIdentifier: .stepCount)!
     let status = store.authorizationStatus(for: stepType)
     switch status {
@@ -604,8 +748,6 @@ private class MotionHandler: PermissionHandler {
 }
 
 // MARK: - App Tracking Transparency Handler
-
-import AppTrackingTransparency
 
 private class TrackingHandler: PermissionHandler {
   var isSupported: Bool {

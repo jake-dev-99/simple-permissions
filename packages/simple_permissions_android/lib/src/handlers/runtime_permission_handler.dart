@@ -44,6 +44,22 @@ class RuntimePermissionHandler extends PermissionHandler {
       return PermissionGrant.granted;
     }
 
+    if (androidPermission == 'android.permission.ACCESS_BACKGROUND_LOCATION') {
+      final foreground = await api.checkPermissions([
+        'android.permission.ACCESS_FINE_LOCATION',
+        'android.permission.ACCESS_COARSE_LOCATION',
+      ]);
+      if (foreground['android.permission.ACCESS_FINE_LOCATION'] != true &&
+          foreground['android.permission.ACCESS_COARSE_LOCATION'] != true) {
+        developer.log(
+          'BackgroundLocation request started without foreground location '
+          'grant. On Android 30+, request fine/coarse first, then request '
+          'background in a separate step.',
+          name: 'simple_permissions_android',
+        );
+      }
+    }
+
     // 2. Request the permission.
     final result = await api.requestPermissions([androidPermission]);
     if (result[androidPermission] == true) {

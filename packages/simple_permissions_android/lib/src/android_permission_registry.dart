@@ -27,8 +27,7 @@ abstract final class AndroidPermission {
   static const writeContacts = 'android.permission.WRITE_CONTACTS';
 
   // Storage (pre-33 + granular 33+)
-  static const readExternalStorage =
-      'android.permission.READ_EXTERNAL_STORAGE';
+  static const readExternalStorage = 'android.permission.READ_EXTERNAL_STORAGE';
   static const readMediaImages = 'android.permission.READ_MEDIA_IMAGES';
   static const readMediaVideo = 'android.permission.READ_MEDIA_VIDEO';
   static const readMediaAudio = 'android.permission.READ_MEDIA_AUDIO';
@@ -70,14 +69,15 @@ abstract final class AndroidPermission {
 
   // Sensors
   static const bodySensors = 'android.permission.BODY_SENSORS';
-  static const activityRecognition =
-      'android.permission.ACTIVITY_RECOGNITION';
+  static const activityRecognition = 'android.permission.ACTIVITY_RECOGNITION';
 
   // System
   static const scheduleExactAlarm = 'android.permission.SCHEDULE_EXACT_ALARM';
   static const requestInstallPackages =
       'android.permission.REQUEST_INSTALL_PACKAGES';
   static const systemAlertWindow = 'android.permission.SYSTEM_ALERT_WINDOW';
+  static const manageExternalStorage =
+      'android.permission.MANAGE_EXTERNAL_STORAGE';
 
   // Wi-Fi
   static const nearbyWifiDevices = 'android.permission.NEARBY_WIFI_DEVICES';
@@ -213,6 +213,12 @@ Map<Type, PermissionHandler> buildAndroidPermissionRegistry() {
     WriteCalendar: const RuntimePermissionHandler(
       AndroidPermission.writeCalendar,
     ),
+    ReadReminders: const RuntimePermissionHandler(
+      AndroidPermission.readCalendar,
+    ),
+    WriteReminders: const RuntimePermissionHandler(
+      AndroidPermission.writeCalendar,
+    ),
 
     // =========================================================================
     // Notification — API 33+
@@ -244,19 +250,17 @@ Map<Type, PermissionHandler> buildAndroidPermissionRegistry() {
     BatteryOptimizationExemption: const SystemSettingHandler(
       SystemSettingType.batteryOptimization,
     ),
-    // ScheduleExactAlarm, RequestInstallPackages, SystemAlertWindow require
-    // settings-intent flows that aren't yet wired through Pigeon. Register
-    // them as runtime permissions for now (the Kotlin side resolves them
-    // correctly via isPermissionApplicable).
-    ScheduleExactAlarm: const RuntimePermissionHandler(
-      AndroidPermission.scheduleExactAlarm,
-      minSdk: 31,
+    ScheduleExactAlarm: const SystemSettingHandler(
+      SystemSettingType.scheduleExactAlarm,
     ),
-    RequestInstallPackages: const RuntimePermissionHandler(
-      AndroidPermission.requestInstallPackages,
+    RequestInstallPackages: const SystemSettingHandler(
+      SystemSettingType.requestInstallPackages,
     ),
-    SystemAlertWindow: const RuntimePermissionHandler(
-      AndroidPermission.systemAlertWindow,
+    SystemAlertWindow: const SystemSettingHandler(
+      SystemSettingType.systemAlertWindow,
+    ),
+    ManageExternalStorage: const SystemSettingHandler(
+      SystemSettingType.manageExternalStorage,
     ),
 
     // =========================================================================

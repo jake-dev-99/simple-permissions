@@ -67,6 +67,10 @@ abstract class SimplePermissionsPlatform extends PlatformInterface {
   ///
   /// Default implementation calls [request] for each permission sequentially.
   /// Platform implementations may override for batch optimization.
+  ///
+  /// Implementations that batch runtime permissions may perform denial
+  /// classification (e.g., rationale checks) in a single post-request pass
+  /// rather than matching the exact call shape of single-permission [request].
   Future<PermissionResult> requestAll(List<Permission> permissions) async {
     final results = <Permission, PermissionGrant>{};
     for (final permission in permissions) {

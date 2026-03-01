@@ -183,7 +183,6 @@ Concrete subclasses:
 | `runtime_permission_handler.dart` | `RuntimePermissionHandler` | Standard `ActivityCompat.requestPermissions` flow. Takes permission string + optional `minSdk`/`maxSdk`. |
 | `role_handler.dart` | `RoleHandler` | `RoleManager.requestRole()` flow. Takes role string. |
 | `system_setting_handler.dart` | `SystemSettingHandler` | Things that open system settings intents (battery optimization, exact alarms). |
-| `versioned_handler.dart` | `VersionedHandler` | Wraps 2-3 inner handlers, delegates to the right one based on `Build.VERSION.SDK_INT`. |
 
 ### 2.2 — Build the registry
 
@@ -193,13 +192,10 @@ Map from `Permission` runtime type → `PermissionHandler`:
 
 ```dart
 final registry = <Type, PermissionHandler Function(HostApi, Context)>{
-  ReadMediaImages: (api, ctx) => VersionedHandler(
-    handlers: [
-      (minSdk: 34, handler: RuntimePermissionHandler(api, 'READ_MEDIA_VISUAL_USER_SELECTED')),
-      (minSdk: 33, handler: RuntimePermissionHandler(api, 'READ_MEDIA_IMAGES')),
-      (maxSdk: 32, handler: RuntimePermissionHandler(api, 'READ_EXTERNAL_STORAGE')),
-    ],
-  ),
+ReadMediaImages: (api, ctx) =>
+  RuntimePermissionHandler(api, 'READ_MEDIA_IMAGES', minSdk: 33),
+ReadExternalStorage: (api, ctx) =>
+  RuntimePermissionHandler(api, 'READ_EXTERNAL_STORAGE', maxSdk: 32),
   DefaultSmsApp: (api, ctx) => RoleHandler(api, 'android.app.role.SMS'),
   BatteryOptimizationExemption: (api, ctx) => SystemSettingHandler(api),
   // ...every Permission type gets a handler
@@ -240,7 +236,6 @@ Implement the deprecated `checkCapability(PermissionCapability)` by mapping old 
 
 - Each handler type unit tested with mock HostApi
 - Registry coverage: every `Permission` variant has a registered handler
-- `VersionedHandler` resolves correctly at SDK boundary (32→33, 30→31, etc.)
 - Rationale bug fix: verify correct `denied` vs `permanentlyDenied` classification
 - Backward-compat: old `PermissionCapability.canReadContacts` → new `ReadContacts()` equivalence
 

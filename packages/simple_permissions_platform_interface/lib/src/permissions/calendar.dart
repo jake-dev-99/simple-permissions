@@ -27,3 +27,25 @@ class WriteCalendar extends CalendarPermission {
   @override
   String get identifier => 'write_calendar';
 }
+
+/// Read reminders.
+///
+/// - **Android**: mapped to `android.permission.READ_CALENDAR`
+/// - **iOS/macOS**: `EKAuthorizationStatus` for `.reminder`
+class ReadReminders extends CalendarPermission {
+  const ReadReminders();
+
+  @override
+  String get identifier => 'read_reminders';
+}
+
+/// Create/modify reminders.
+///
+/// - **Android**: mapped to `android.permission.WRITE_CALENDAR`
+/// - **iOS/macOS**: included in reminders authorization
+class WriteReminders extends CalendarPermission {
+  const WriteReminders();
+
+  @override
+  String get identifier => 'write_reminders';
+}

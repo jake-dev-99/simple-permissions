@@ -32,7 +32,8 @@ class FineLocation extends LocationPermission {
 /// - **Android**: `android.permission.ACCESS_BACKGROUND_LOCATION` (API 29+)
 /// - **iOS**: `CLLocationManager` "Always" authorization
 ///
-/// On Android, this should be requested **after** [FineLocation] is granted.
+/// On Android 30+, this should be requested in a separate second step
+/// **after** [FineLocation] or [CoarseLocation] is granted.
 class BackgroundLocation extends LocationPermission {
   const BackgroundLocation();
 

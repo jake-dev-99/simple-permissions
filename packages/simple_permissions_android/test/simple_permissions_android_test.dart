@@ -39,6 +39,33 @@ class MockPermissionsApi implements PermissionsApi {
   /// Result of openAppSettings.
   bool openSettingsResult = true;
 
+  /// Result of canScheduleExactAlarms.
+  bool canScheduleExactAlarmsResult = true;
+
+  /// Result of requestScheduleExactAlarms.
+  bool requestScheduleExactAlarmsResult = true;
+
+  /// Result of canRequestInstallPackages.
+  bool canRequestInstallPackagesResult = true;
+
+  /// Result of requestInstallPackages.
+  bool requestInstallPackagesResult = true;
+
+  /// Result of canDrawOverlays.
+  bool canDrawOverlaysResult = true;
+
+  /// Result of requestDrawOverlays.
+  bool requestDrawOverlaysResult = true;
+
+  /// Result of canManageExternalStorage.
+  bool canManageExternalStorageResult = true;
+
+  /// Result of requestManageExternalStorage.
+  bool requestManageExternalStorageResult = true;
+
+  /// SDK version to return from getSdkVersion.
+  int sdkVersion = 34;
+
   // ---- Call tracking ----
   final List<String> calls = [];
 
@@ -51,6 +78,15 @@ class MockPermissionsApi implements PermissionsApi {
     batteryOptIgnoring = false;
     batteryOptRequestResult = false;
     openSettingsResult = true;
+    canScheduleExactAlarmsResult = true;
+    requestScheduleExactAlarmsResult = true;
+    canRequestInstallPackagesResult = true;
+    requestInstallPackagesResult = true;
+    canDrawOverlaysResult = true;
+    requestDrawOverlaysResult = true;
+    canManageExternalStorageResult = true;
+    requestManageExternalStorageResult = true;
+    sdkVersion = 34;
     calls.clear();
   }
 
@@ -63,8 +99,7 @@ class MockPermissionsApi implements PermissionsApi {
   }
 
   @override
-  Future<Map<String, bool>> requestPermissions(
-      List<String> permissions) async {
+  Future<Map<String, bool>> requestPermissions(List<String> permissions) async {
     calls.add('requestPermissions:${permissions.join(",")}');
     return {
       for (final p in permissions) p: requestResult[p] ?? false,
@@ -96,6 +131,54 @@ class MockPermissionsApi implements PermissionsApi {
   }
 
   @override
+  Future<bool> canScheduleExactAlarms() async {
+    calls.add('canScheduleExactAlarms');
+    return canScheduleExactAlarmsResult;
+  }
+
+  @override
+  Future<bool> requestScheduleExactAlarms() async {
+    calls.add('requestScheduleExactAlarms');
+    return requestScheduleExactAlarmsResult;
+  }
+
+  @override
+  Future<bool> canRequestInstallPackages() async {
+    calls.add('canRequestInstallPackages');
+    return canRequestInstallPackagesResult;
+  }
+
+  @override
+  Future<bool> requestInstallPackages() async {
+    calls.add('requestInstallPackages');
+    return requestInstallPackagesResult;
+  }
+
+  @override
+  Future<bool> canDrawOverlays() async {
+    calls.add('canDrawOverlays');
+    return canDrawOverlaysResult;
+  }
+
+  @override
+  Future<bool> requestDrawOverlays() async {
+    calls.add('requestDrawOverlays');
+    return requestDrawOverlaysResult;
+  }
+
+  @override
+  Future<bool> canManageExternalStorage() async {
+    calls.add('canManageExternalStorage');
+    return canManageExternalStorageResult;
+  }
+
+  @override
+  Future<bool> requestManageExternalStorage() async {
+    calls.add('requestManageExternalStorage');
+    return requestManageExternalStorageResult;
+  }
+
+  @override
   Future<Map<String, bool>> shouldShowRequestPermissionRationale(
       List<String> permissions) async {
     calls.add('shouldShowRationale:${permissions.join(",")}');
@@ -108,6 +191,12 @@ class MockPermissionsApi implements PermissionsApi {
   Future<bool> openAppSettings() async {
     calls.add('openAppSettings');
     return openSettingsResult;
+  }
+
+  @override
+  Future<int> getSdkVersion() async {
+    calls.add('getSdkVersion');
+    return sdkVersion;
   }
 }
 
@@ -165,7 +254,7 @@ void main() {
         BluetoothConnect, BluetoothScan, BluetoothAdvertise,
         BluetoothLegacy, BluetoothAdminLegacy,
         // Calendar
-        ReadCalendar, WriteCalendar,
+        ReadCalendar, WriteCalendar, ReadReminders, WriteReminders,
         // Notification
         PostNotifications,
         // Microphone
@@ -174,7 +263,7 @@ void main() {
         BodySensors, ActivityRecognition,
         // System
         BatteryOptimizationExemption, ScheduleExactAlarm,
-        RequestInstallPackages, SystemAlertWindow,
+        RequestInstallPackages, SystemAlertWindow, ManageExternalStorage,
         // Roles
         DefaultSmsApp, DefaultDialerApp, DefaultBrowserApp,
         DefaultAssistantApp,
@@ -262,6 +351,34 @@ void main() {
       mockApi.rationaleResult = {'android.permission.CAMERA': false};
       final result = await handler.request(mockApi);
       expect(result, PermissionGrant.permanentlyDenied);
+    });
+
+    test('background location request checks foreground grants first',
+        () async {
+      const handler = RuntimePermissionHandler(
+        'android.permission.ACCESS_BACKGROUND_LOCATION',
+      );
+      mockApi.checkResult = {
+        'android.permission.ACCESS_BACKGROUND_LOCATION': false,
+        'android.permission.ACCESS_FINE_LOCATION': false,
+        'android.permission.ACCESS_COARSE_LOCATION': false,
+      };
+      mockApi.requestResult = {
+        'android.permission.ACCESS_BACKGROUND_LOCATION': false
+      };
+      mockApi.rationaleResult = {
+        'android.permission.ACCESS_BACKGROUND_LOCATION': true
+      };
+
+      final result = await handler.request(mockApi);
+
+      expect(result, PermissionGrant.denied);
+      expect(
+        mockApi.calls,
+        contains(
+          'checkPermissions:android.permission.ACCESS_FINE_LOCATION,android.permission.ACCESS_COARSE_LOCATION',
+        ),
+      );
     });
 
     test('isSupported respects minSdk', () {
@@ -405,82 +522,189 @@ void main() {
         contains('requestIgnoreBatteryOptimizations'),
       );
     });
-  });
 
-  // ===========================================================================
-  // VersionedHandler
-  // ===========================================================================
-
-  group('VersionedHandler', () {
-    test('resolves to correct handler at SDK boundary (32→33)', () {
-      const handler = VersionedHandler([
-        VersionedHandlerEntry(
-          minSdk: 33,
-          handler: RuntimePermissionHandler('android.permission.READ_MEDIA_IMAGES'),
-        ),
-        VersionedHandlerEntry(
-          maxSdk: 32,
-          handler: RuntimePermissionHandler('android.permission.READ_EXTERNAL_STORAGE'),
-        ),
-      ]);
-
-      expect(handler.isSupported(() => 32), isTrue);
-      expect(handler.isSupported(() => 33), isTrue);
-      expect(handler.isSupported(() => 34), isTrue);
-    });
-
-    test('ResolvedVersionedHandler delegates to correct inner handler',
+    test('schedule exact alarm request uses requestScheduleExactAlarms',
         () async {
-      final mockApi = MockPermissionsApi();
-      mockApi.checkResult = {
-        'android.permission.READ_MEDIA_IMAGES': true,
-      };
-
-      const handler = VersionedHandler([
-        VersionedHandlerEntry(
-          minSdk: 33,
-          handler: RuntimePermissionHandler('android.permission.READ_MEDIA_IMAGES'),
-        ),
-        VersionedHandlerEntry(
-          maxSdk: 32,
-          handler: RuntimePermissionHandler('android.permission.READ_EXTERNAL_STORAGE'),
-        ),
-      ]);
-
-      // SDK 34 → should pick READ_MEDIA_IMAGES
-      final resolved = ResolvedVersionedHandler(handler, () => 34);
-      final result = await resolved.check(mockApi);
+      const handler =
+          SystemSettingHandler(SystemSettingType.scheduleExactAlarm);
+      mockApi.canScheduleExactAlarmsResult = false;
+      mockApi.requestScheduleExactAlarmsResult = true;
+      final result = await handler.request(mockApi);
       expect(result, PermissionGrant.granted);
       expect(
-        mockApi.calls.last,
-        'checkPermissions:android.permission.READ_MEDIA_IMAGES',
+        mockApi.calls,
+        contains('requestScheduleExactAlarms'),
       );
     });
 
-    test('ResolvedVersionedHandler picks legacy on older SDK', () async {
-      final mockApi = MockPermissionsApi();
-      mockApi.checkResult = {
-        'android.permission.READ_EXTERNAL_STORAGE': true,
-      };
+    test('schedule exact alarm check returns denied when unavailable',
+        () async {
+      const handler =
+          SystemSettingHandler(SystemSettingType.scheduleExactAlarm);
+      mockApi.canScheduleExactAlarmsResult = false;
+      final result = await handler.check(mockApi);
+      expect(result, PermissionGrant.denied);
+    });
 
-      const handler = VersionedHandler([
-        VersionedHandlerEntry(
-          minSdk: 33,
-          handler: RuntimePermissionHandler('android.permission.READ_MEDIA_IMAGES'),
-        ),
-        VersionedHandlerEntry(
-          maxSdk: 32,
-          handler: RuntimePermissionHandler('android.permission.READ_EXTERNAL_STORAGE'),
-        ),
-      ]);
+    test('schedule exact alarm request returns denied when request fails',
+        () async {
+      const handler =
+          SystemSettingHandler(SystemSettingType.scheduleExactAlarm);
+      mockApi.canScheduleExactAlarmsResult = false;
+      mockApi.requestScheduleExactAlarmsResult = false;
+      final result = await handler.request(mockApi);
+      expect(result, PermissionGrant.denied);
+    });
 
-      final resolved = ResolvedVersionedHandler(handler, () => 31);
-      final result = await resolved.check(mockApi);
+    test('schedule exact alarm request short-circuits when already granted',
+        () async {
+      const handler =
+          SystemSettingHandler(SystemSettingType.scheduleExactAlarm);
+      mockApi.canScheduleExactAlarmsResult = true;
+      final result = await handler.request(mockApi);
+      expect(result, PermissionGrant.granted);
+      expect(mockApi.calls, isNot(contains('requestScheduleExactAlarms')));
+    });
+
+    test('install packages request uses requestInstallPackages', () async {
+      const handler =
+          SystemSettingHandler(SystemSettingType.requestInstallPackages);
+      mockApi.canRequestInstallPackagesResult = false;
+      mockApi.requestInstallPackagesResult = true;
+      final result = await handler.request(mockApi);
       expect(result, PermissionGrant.granted);
       expect(
-        mockApi.calls.last,
-        'checkPermissions:android.permission.READ_EXTERNAL_STORAGE',
+        mockApi.calls,
+        contains('requestInstallPackages'),
       );
+    });
+
+    test('install packages check returns denied when unavailable', () async {
+      const handler =
+          SystemSettingHandler(SystemSettingType.requestInstallPackages);
+      mockApi.canRequestInstallPackagesResult = false;
+      final result = await handler.check(mockApi);
+      expect(result, PermissionGrant.denied);
+    });
+
+    test('install packages request returns denied when request fails',
+        () async {
+      const handler =
+          SystemSettingHandler(SystemSettingType.requestInstallPackages);
+      mockApi.canRequestInstallPackagesResult = false;
+      mockApi.requestInstallPackagesResult = false;
+      final result = await handler.request(mockApi);
+      expect(result, PermissionGrant.denied);
+    });
+
+    test('install packages request short-circuits when already granted',
+        () async {
+      const handler =
+          SystemSettingHandler(SystemSettingType.requestInstallPackages);
+      mockApi.canRequestInstallPackagesResult = true;
+      final result = await handler.request(mockApi);
+      expect(result, PermissionGrant.granted);
+      expect(mockApi.calls, isNot(contains('requestInstallPackages')));
+    });
+
+    test('overlay request uses requestDrawOverlays', () async {
+      const handler = SystemSettingHandler(SystemSettingType.systemAlertWindow);
+      mockApi.canDrawOverlaysResult = false;
+      mockApi.requestDrawOverlaysResult = true;
+      final result = await handler.request(mockApi);
+      expect(result, PermissionGrant.granted);
+      expect(
+        mockApi.calls,
+        contains('requestDrawOverlays'),
+      );
+    });
+
+    test('overlay check returns denied when unavailable', () async {
+      const handler = SystemSettingHandler(SystemSettingType.systemAlertWindow);
+      mockApi.canDrawOverlaysResult = false;
+      final result = await handler.check(mockApi);
+      expect(result, PermissionGrant.denied);
+    });
+
+    test('overlay request returns denied when request fails', () async {
+      const handler = SystemSettingHandler(SystemSettingType.systemAlertWindow);
+      mockApi.canDrawOverlaysResult = false;
+      mockApi.requestDrawOverlaysResult = false;
+      final result = await handler.request(mockApi);
+      expect(result, PermissionGrant.denied);
+    });
+
+    test('overlay request short-circuits when already granted', () async {
+      const handler = SystemSettingHandler(SystemSettingType.systemAlertWindow);
+      mockApi.canDrawOverlaysResult = true;
+      final result = await handler.request(mockApi);
+      expect(result, PermissionGrant.granted);
+      expect(mockApi.calls, isNot(contains('requestDrawOverlays')));
+    });
+
+    test('manage external storage request uses requestManageExternalStorage',
+        () async {
+      const handler =
+          SystemSettingHandler(SystemSettingType.manageExternalStorage);
+      mockApi.canManageExternalStorageResult = false;
+      mockApi.requestManageExternalStorageResult = true;
+      final result = await handler.request(mockApi);
+      expect(result, PermissionGrant.granted);
+      expect(
+        mockApi.calls,
+        contains('requestManageExternalStorage'),
+      );
+    });
+
+    test('manage external storage check returns denied when unavailable',
+        () async {
+      const handler =
+          SystemSettingHandler(SystemSettingType.manageExternalStorage);
+      mockApi.canManageExternalStorageResult = false;
+      final result = await handler.check(mockApi);
+      expect(result, PermissionGrant.denied);
+    });
+
+    test('manage external storage request returns denied when request fails',
+        () async {
+      const handler =
+          SystemSettingHandler(SystemSettingType.manageExternalStorage);
+      mockApi.canManageExternalStorageResult = false;
+      mockApi.requestManageExternalStorageResult = false;
+      final result = await handler.request(mockApi);
+      expect(result, PermissionGrant.denied);
+    });
+
+    test('manage external storage request short-circuits when already granted',
+        () async {
+      const handler =
+          SystemSettingHandler(SystemSettingType.manageExternalStorage);
+      mockApi.canManageExternalStorageResult = true;
+      final result = await handler.request(mockApi);
+      expect(result, PermissionGrant.granted);
+      expect(mockApi.calls, isNot(contains('requestManageExternalStorage')));
+    });
+
+    test('isSupported uses per-setting SDK minimums', () {
+      const battery =
+          SystemSettingHandler(SystemSettingType.batteryOptimization);
+      const exact = SystemSettingHandler(SystemSettingType.scheduleExactAlarm);
+      const install =
+          SystemSettingHandler(SystemSettingType.requestInstallPackages);
+      const overlay = SystemSettingHandler(SystemSettingType.systemAlertWindow);
+      const manage =
+          SystemSettingHandler(SystemSettingType.manageExternalStorage);
+
+      expect(battery.isSupported(() => 22), isFalse);
+      expect(battery.isSupported(() => 23), isTrue);
+      expect(exact.isSupported(() => 30), isFalse);
+      expect(exact.isSupported(() => 31), isTrue);
+      expect(install.isSupported(() => 25), isFalse);
+      expect(install.isSupported(() => 26), isTrue);
+      expect(overlay.isSupported(() => 22), isFalse);
+      expect(overlay.isSupported(() => 23), isTrue);
+      expect(manage.isSupported(() => 29), isFalse);
+      expect(manage.isSupported(() => 30), isTrue);
     });
   });
 
@@ -560,6 +784,22 @@ void main() {
       expect(plugin31.isSupported(const ReadExternalStorage()), isTrue);
     });
 
+    test('isSupported for system settings respects SDK minimums', () {
+      final plugin22 = SimplePermissionsAndroid(
+        api: mockApi,
+        sdkVersionOverride: () => 22,
+      );
+      final plugin30 = SimplePermissionsAndroid(
+        api: mockApi,
+        sdkVersionOverride: () => 30,
+      );
+      expect(
+          plugin22.isSupported(const BatteryOptimizationExemption()), isFalse);
+      expect(plugin30.isSupported(const ScheduleExactAlarm()), isFalse);
+      expect(plugin30.isSupported(const RequestInstallPackages()), isTrue);
+      expect(plugin30.isSupported(const ManageExternalStorage()), isTrue);
+    });
+
     test('openAppSettings delegates to host API', () async {
       mockApi.openSettingsResult = true;
       final result = await plugin.openAppSettings();
@@ -579,6 +819,10 @@ void main() {
       expect(result.isFullyGranted, isFalse);
       expect(result[const ReadContacts()], PermissionGrant.granted);
       expect(result[const WriteContacts()], PermissionGrant.denied);
+      expect(
+        mockApi.calls.where((c) => c.startsWith('checkPermissions')).length,
+        1,
+      );
     });
 
     test('requestAll returns aggregate PermissionResult', () async {
@@ -595,6 +839,131 @@ void main() {
         const WriteContacts(),
       ]);
       expect(result.isFullyGranted, isTrue);
+      expect(
+        mockApi.calls.where((c) => c.startsWith('checkPermissions')).length,
+        1,
+      );
+      expect(
+        mockApi.calls.where((c) => c.startsWith('requestPermissions')).length,
+        1,
+      );
+      expect(
+        mockApi.calls.where((c) => c.startsWith('shouldShowRationale')),
+        isEmpty,
+      );
+    });
+
+    test('requestAll classifies denied runtime permissions in batch', () async {
+      mockApi.checkResult = {
+        'android.permission.READ_CONTACTS': false,
+        'android.permission.WRITE_CONTACTS': false,
+      };
+      mockApi.requestResult = {
+        'android.permission.READ_CONTACTS': false,
+        'android.permission.WRITE_CONTACTS': false,
+      };
+      mockApi.rationaleResult = {
+        'android.permission.READ_CONTACTS': true,
+        'android.permission.WRITE_CONTACTS': false,
+      };
+      final result = await plugin.requestAll([
+        const ReadContacts(),
+        const WriteContacts(),
+      ]);
+      expect(result[const ReadContacts()], PermissionGrant.denied);
+      expect(
+        result[const WriteContacts()],
+        PermissionGrant.permanentlyDenied,
+      );
+      expect(
+        mockApi.calls.where((c) => c.startsWith('shouldShowRationale')).length,
+        1,
+      );
+    });
+
+    test('check ScheduleExactAlarm routes through system setting handler',
+        () async {
+      mockApi.canScheduleExactAlarmsResult = false;
+      final result = await plugin.check(const ScheduleExactAlarm());
+      expect(result, PermissionGrant.denied);
+      expect(mockApi.calls, contains('canScheduleExactAlarms'));
+    });
+
+    test('request ScheduleExactAlarm routes through system setting handler',
+        () async {
+      mockApi.canScheduleExactAlarmsResult = false;
+      mockApi.requestScheduleExactAlarmsResult = true;
+      final result = await plugin.request(const ScheduleExactAlarm());
+      expect(result, PermissionGrant.granted);
+      expect(mockApi.calls, contains('requestScheduleExactAlarms'));
+    });
+
+    test('check RequestInstallPackages routes through system setting handler',
+        () async {
+      mockApi.canRequestInstallPackagesResult = false;
+      final result = await plugin.check(const RequestInstallPackages());
+      expect(result, PermissionGrant.denied);
+      expect(mockApi.calls, contains('canRequestInstallPackages'));
+    });
+
+    test('request RequestInstallPackages routes through system setting handler',
+        () async {
+      mockApi.canRequestInstallPackagesResult = false;
+      mockApi.requestInstallPackagesResult = true;
+      final result = await plugin.request(const RequestInstallPackages());
+      expect(result, PermissionGrant.granted);
+      expect(mockApi.calls, contains('requestInstallPackages'));
+    });
+
+    test('check SystemAlertWindow routes through system setting handler',
+        () async {
+      mockApi.canDrawOverlaysResult = false;
+      final result = await plugin.check(const SystemAlertWindow());
+      expect(result, PermissionGrant.denied);
+      expect(mockApi.calls, contains('canDrawOverlays'));
+    });
+
+    test('request SystemAlertWindow routes through system setting handler',
+        () async {
+      mockApi.canDrawOverlaysResult = false;
+      mockApi.requestDrawOverlaysResult = true;
+      final result = await plugin.request(const SystemAlertWindow());
+      expect(result, PermissionGrant.granted);
+      expect(mockApi.calls, contains('requestDrawOverlays'));
+    });
+
+    test('check ManageExternalStorage routes through system setting handler',
+        () async {
+      mockApi.canManageExternalStorageResult = false;
+      final result = await plugin.check(const ManageExternalStorage());
+      expect(result, PermissionGrant.denied);
+      expect(mockApi.calls, contains('canManageExternalStorage'));
+    });
+
+    test('request ManageExternalStorage routes through system setting handler',
+        () async {
+      mockApi.canManageExternalStorageResult = false;
+      mockApi.requestManageExternalStorageResult = true;
+      final result = await plugin.request(const ManageExternalStorage());
+      expect(result, PermissionGrant.granted);
+      expect(mockApi.calls, contains('requestManageExternalStorage'));
+    });
+
+    test('checkAll batches runtime and handles non-runtime sequentially',
+        () async {
+      mockApi.checkResult = {'android.permission.READ_CONTACTS': true};
+      mockApi.roleHeld = {'android.app.role.SMS': false};
+      final result = await plugin.checkAll([
+        const ReadContacts(),
+        const DefaultSmsApp(),
+      ]);
+      expect(result[const ReadContacts()], PermissionGrant.granted);
+      expect(result[const DefaultSmsApp()], PermissionGrant.denied);
+      expect(
+        mockApi.calls.where((c) => c.startsWith('checkPermissions')).length,
+        1,
+      );
+      expect(mockApi.calls, contains('isRoleHeld:android.app.role.SMS'));
     });
   });
 
@@ -669,6 +1038,30 @@ void main() {
     });
   });
 
+  group('SDK loading', () {
+    test('fetches SDK before first versioned check and caches it', () async {
+      final mockApi = MockPermissionsApi()
+        ..sdkVersion = 32
+        ..checkResult = {'android.permission.READ_EXTERNAL_STORAGE': true};
+      final plugin = SimplePermissionsAndroid(api: mockApi);
+
+      final first = await plugin.check(const VersionedPermission.images());
+      expect(first, PermissionGrant.granted);
+      expect(mockApi.calls.first, 'getSdkVersion');
+      expect(
+        mockApi.calls,
+        contains('checkPermissions:android.permission.READ_EXTERNAL_STORAGE'),
+      );
+
+      mockApi.calls.clear();
+      await plugin.check(const VersionedPermission.images());
+      expect(
+        mockApi.calls.where((call) => call == 'getSdkVersion').length,
+        0,
+      );
+    });
+  });
+
   // ===========================================================================
   // Role handling through plugin
   // ===========================================================================
@@ -722,16 +1115,14 @@ void main() {
 
     test('check BatteryOptimizationExemption routes correctly', () async {
       mockApi.batteryOptIgnoring = true;
-      final result =
-          await plugin.check(const BatteryOptimizationExemption());
+      final result = await plugin.check(const BatteryOptimizationExemption());
       expect(result, PermissionGrant.granted);
     });
 
     test('request BatteryOptimizationExemption routes correctly', () async {
       mockApi.batteryOptIgnoring = false;
       mockApi.batteryOptRequestResult = true;
-      final result =
-          await plugin.request(const BatteryOptimizationExemption());
+      final result = await plugin.request(const BatteryOptimizationExemption());
       expect(result, PermissionGrant.granted);
     });
   });
@@ -739,5 +1130,4 @@ void main() {
   // ===========================================================================
   // Deprecated capability backward compatibility
   // ===========================================================================
-
 }

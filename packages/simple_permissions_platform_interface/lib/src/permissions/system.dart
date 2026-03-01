@@ -51,3 +51,14 @@ class SystemAlertWindow extends SystemPermission {
   @override
   String get identifier => 'system_alert_window';
 }
+
+/// Manage all files access (scoped-storage bypass).
+///
+/// - **Android**: `MANAGE_EXTERNAL_STORAGE` via settings intent (API 30+)
+/// - **iOS/macOS**: Not applicable
+class ManageExternalStorage extends SystemPermission {
+  const ManageExternalStorage();
+
+  @override
+  String get identifier => 'manage_external_storage';
+}

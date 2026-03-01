@@ -55,65 +55,29 @@ private open class PermissionsPigeonCodec : StandardMessageCodec() {
 }
 
 
-/**
- * Host API for permission operations.
- *
- * Implemented in Kotlin, called from Dart.
- *
- * Generated interface from Pigeon that represents a handler of messages from Flutter.
- */
+/** Generated interface from Pigeon that represents a handler of messages from Flutter. */
 interface PermissionsHostApi {
-  /**
-   * Checks which permissions from the list are currently granted.
-   *
-   * Returns a map of permission string → granted status.
-   */
   fun checkPermissions(permissions: List<String>): Map<String, Boolean>
-  /**
-   * Requests the specified permissions from the user.
-   *
-   * Shows system permission dialogs. Returns map of permission → granted.
-   * This is async because it waits for user interaction.
-   */
   fun requestPermissions(permissions: List<String>, callback: (Result<Map<String, Boolean>>) -> Unit)
-  /**
-   * Checks if the specified role is currently held by this app.
-   *
-   * Common roles:
-   * - `android.app.role.SMS` - Default SMS app
-   * - `android.app.role.DIALER` - Default phone app
-   */
   fun isRoleHeld(roleId: String): Boolean
-  /**
-   * Requests the specified role from the user.
-   *
-   * Shows system role request dialog. Returns true if granted.
-   */
   fun requestRole(roleId: String, callback: (Result<Boolean>) -> Unit)
-  /**
-   * Checks if the app is exempt from battery optimization.
-   *
-   * Battery optimization exemption is important for SMS apps to ensure
-   * reliable message delivery when the phone is idle.
-   */
   fun isIgnoringBatteryOptimizations(): Boolean
-  /**
-   * Requests exemption from battery optimization.
-   *
-   * Shows system dialog explaining the request. Returns true if granted.
-   */
   fun requestIgnoreBatteryOptimizations(callback: (Result<Boolean>) -> Unit)
-  /**
-   * Checks Android rationale visibility for each permission.
-   *
-   * Returns permission -> shouldShowRationale.
-   */
+  /** Whether the host can schedule exact alarms (API 31+). */
+  fun canScheduleExactAlarms(): Boolean
+  fun requestScheduleExactAlarms(callback: (Result<Boolean>) -> Unit)
+  /** Whether the host may install packages from unknown sources (API 26+). */
+  fun canRequestInstallPackages(): Boolean
+  fun requestInstallPackages(callback: (Result<Boolean>) -> Unit)
+  /** Whether the host can draw overlays on top of other apps (API 23+). */
+  fun canDrawOverlays(): Boolean
+  fun requestDrawOverlays(callback: (Result<Boolean>) -> Unit)
+  /** Whether the host has MANAGE_EXTERNAL_STORAGE access (API 30+). */
+  fun canManageExternalStorage(): Boolean
+  fun requestManageExternalStorage(callback: (Result<Boolean>) -> Unit)
   fun shouldShowRequestPermissionRationale(permissions: List<String>): Map<String, Boolean>
-  /**
-   * Opens this app's system settings page.
-   *
-   * Returns true if the intent was started successfully.
-   */
+  /** Returns the current Android SDK level (Build.VERSION.SDK_INT). */
+  fun getSdkVersion(): Long
   fun openAppSettings(): Boolean
 
   companion object {
@@ -126,7 +90,7 @@ interface PermissionsHostApi {
     fun setUp(binaryMessenger: BinaryMessenger, api: PermissionsHostApi?, messageChannelSuffix: String = "") {
       val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions.PermissionsHostApi.checkPermissions$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.checkPermissions$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -143,7 +107,7 @@ interface PermissionsHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions.PermissionsHostApi.requestPermissions$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.requestPermissions$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -163,7 +127,7 @@ interface PermissionsHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions.PermissionsHostApi.isRoleHeld$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.isRoleHeld$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -180,7 +144,7 @@ interface PermissionsHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions.PermissionsHostApi.requestRole$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.requestRole$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -200,7 +164,7 @@ interface PermissionsHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions.PermissionsHostApi.isIgnoringBatteryOptimizations$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.isIgnoringBatteryOptimizations$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { _, reply ->
             val wrapped: List<Any?> = try {
@@ -215,7 +179,7 @@ interface PermissionsHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions.PermissionsHostApi.requestIgnoreBatteryOptimizations$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.requestIgnoreBatteryOptimizations$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { _, reply ->
             api.requestIgnoreBatteryOptimizations{ result: Result<Boolean> ->
@@ -233,7 +197,139 @@ interface PermissionsHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions.PermissionsHostApi.shouldShowRequestPermissionRationale$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.canScheduleExactAlarms$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.canScheduleExactAlarms())
+            } catch (exception: Throwable) {
+              wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.requestScheduleExactAlarms$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.requestScheduleExactAlarms{ result: Result<Boolean> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.canRequestInstallPackages$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.canRequestInstallPackages())
+            } catch (exception: Throwable) {
+              wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.requestInstallPackages$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.requestInstallPackages{ result: Result<Boolean> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.canDrawOverlays$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.canDrawOverlays())
+            } catch (exception: Throwable) {
+              wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.requestDrawOverlays$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.requestDrawOverlays{ result: Result<Boolean> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.canManageExternalStorage$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.canManageExternalStorage())
+            } catch (exception: Throwable) {
+              wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.requestManageExternalStorage$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            api.requestManageExternalStorage{ result: Result<Boolean> ->
+              val error = result.exceptionOrNull()
+              if (error != null) {
+                reply.reply(wrapError(error))
+              } else {
+                val data = result.getOrNull()
+                reply.reply(wrapResult(data))
+              }
+            }
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.shouldShowRequestPermissionRationale$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -250,7 +346,22 @@ interface PermissionsHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions.PermissionsHostApi.openAppSettings$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.getSdkVersion$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.getSdkVersion())
+            } catch (exception: Throwable) {
+              wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.openAppSettings$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { _, reply ->
             val wrapped: List<Any?> = try {

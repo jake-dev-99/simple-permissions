@@ -66,8 +66,8 @@ class SimplePermissionsNative {
   SimplePermissionsPlatform _ensureInitialized() {
     if (!_initialized) {
       throw StateError(
-        'SimplePermissions is not initialized. Call '
-        'SimplePermissions.initialize() before using the API.',
+        'SimplePermissionsNative is not initialized. Call '
+        'SimplePermissionsNative.initialize() before using the API.',
       );
     }
     return SimplePermissionsPlatform.instance;
