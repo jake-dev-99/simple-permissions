@@ -1,5 +1,8 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:simple_permissions_macos/simple_permissions_macos.dart';
+import 'package:simple_permissions_macos/src/macos_permission_registry.dart';
 import 'package:simple_permissions_macos/src/permissions_macos_api.dart';
 import 'package:simple_permissions_platform_interface/simple_permissions_platform_interface.dart';
 
@@ -15,9 +18,6 @@ class MockPermissionsMacosApi implements PermissionsMacosApi {
 
   /// Wire value returned by [requestPermission].
   String requestResult = 'granted';
-
-  /// Value returned by [isSupported].
-  bool supportedResult = true;
 
   /// Value returned by [openAppSettings].
   bool openSettingsResult = true;
@@ -35,12 +35,6 @@ class MockPermissionsMacosApi implements PermissionsMacosApi {
   Future<String> requestPermission(String identifier) async {
     log.add((method: 'requestPermission', identifier: identifier));
     return requestResult;
-  }
-
-  @override
-  Future<bool> isSupported(String identifier) async {
-    log.add((method: 'isSupported', identifier: identifier));
-    return supportedResult;
   }
 
   @override
@@ -72,6 +66,10 @@ void main() {
   group('SimplePermissionsMacos', () {
     test('extends SimplePermissionsPlatform', () {
       expect(plugin, isA<SimplePermissionsPlatform>());
+    });
+
+    test('initialize preserves the platform interface contract', () async {
+      await expectLater(plugin.initialize(), completes);
     });
 
     test('registerWith sets platform instance', () {
@@ -418,5 +416,25 @@ void main() {
       }
       expect(count, 13);
     });
+
+    test('Dart and Swift registries stay aligned', () async {
+      final swiftRegistry = await File(
+        'macos/Classes/PermissionRegistry.swift',
+      ).readAsString();
+      final swiftIdentifiers = _extractSwiftIdentifiers(swiftRegistry);
+      final dartIdentifiers = registeredPermissions
+          .where((perm) => isMacosPermissionRegistered(perm.runtimeType))
+          .map((perm) => perm.identifier)
+          .toSet();
+
+      expect(swiftIdentifiers, dartIdentifiers);
+    });
   });
+}
+
+Set<String> _extractSwiftIdentifiers(String source) {
+  final matches = RegExp(r'"([^"]+)":\s*[A-Za-z]+PermissionHandler').allMatches(
+    source,
+  );
+  return matches.map((match) => match.group(1)!).toSet();
 }

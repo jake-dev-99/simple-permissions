@@ -15,7 +15,6 @@ PlatformException _createConnectionError(String channelName) {
   );
 }
 
-
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -41,9 +40,11 @@ class PermissionsHostApi {
   /// Constructor for [PermissionsHostApi].  The [binaryMessenger] named argument is
   /// available for dependency injection.  If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  PermissionsHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+  PermissionsHostApi(
+      {BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
       : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+        pigeonVar_messageChannelSuffix =
+            messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -51,8 +52,10 @@ class PermissionsHostApi {
   final String pigeonVar_messageChannelSuffix;
 
   Future<Map<String, bool>> checkPermissions(List<String> permissions) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.checkPermissions$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.checkPermissions$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -73,13 +76,16 @@ class PermissionsHostApi {
         message: 'Host platform returned null value for non-null return value.',
       );
     } else {
-      return (pigeonVar_replyList[0] as Map<Object?, Object?>?)!.cast<String, bool>();
+      return (pigeonVar_replyList[0] as Map<Object?, Object?>?)!
+          .cast<String, bool>();
     }
   }
 
   Future<Map<String, bool>> requestPermissions(List<String> permissions) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.requestPermissions$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.requestPermissions$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -100,13 +106,16 @@ class PermissionsHostApi {
         message: 'Host platform returned null value for non-null return value.',
       );
     } else {
-      return (pigeonVar_replyList[0] as Map<Object?, Object?>?)!.cast<String, bool>();
+      return (pigeonVar_replyList[0] as Map<Object?, Object?>?)!
+          .cast<String, bool>();
     }
   }
 
   Future<bool> isRoleHeld(String roleId) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.isRoleHeld$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.isRoleHeld$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -132,8 +141,10 @@ class PermissionsHostApi {
   }
 
   Future<bool> requestRole(String roleId) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.requestRole$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.requestRole$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -159,8 +170,10 @@ class PermissionsHostApi {
   }
 
   Future<bool> isIgnoringBatteryOptimizations() async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.isIgnoringBatteryOptimizations$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.isIgnoringBatteryOptimizations$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -186,8 +199,10 @@ class PermissionsHostApi {
   }
 
   Future<bool> requestIgnoreBatteryOptimizations() async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.requestIgnoreBatteryOptimizations$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.requestIgnoreBatteryOptimizations$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -214,8 +229,10 @@ class PermissionsHostApi {
 
   /// Whether the host can schedule exact alarms (API 31+).
   Future<bool> canScheduleExactAlarms() async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.canScheduleExactAlarms$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.canScheduleExactAlarms$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -241,8 +258,10 @@ class PermissionsHostApi {
   }
 
   Future<bool> requestScheduleExactAlarms() async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.requestScheduleExactAlarms$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.requestScheduleExactAlarms$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -269,8 +288,10 @@ class PermissionsHostApi {
 
   /// Whether the host may install packages from unknown sources (API 26+).
   Future<bool> canRequestInstallPackages() async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.canRequestInstallPackages$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.canRequestInstallPackages$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -296,8 +317,10 @@ class PermissionsHostApi {
   }
 
   Future<bool> requestInstallPackages() async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.requestInstallPackages$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.requestInstallPackages$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -324,8 +347,10 @@ class PermissionsHostApi {
 
   /// Whether the host can draw overlays on top of other apps (API 23+).
   Future<bool> canDrawOverlays() async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.canDrawOverlays$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.canDrawOverlays$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -351,8 +376,10 @@ class PermissionsHostApi {
   }
 
   Future<bool> requestDrawOverlays() async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.requestDrawOverlays$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.requestDrawOverlays$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -379,8 +406,10 @@ class PermissionsHostApi {
 
   /// Whether the host has MANAGE_EXTERNAL_STORAGE access (API 30+).
   Future<bool> canManageExternalStorage() async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.canManageExternalStorage$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.canManageExternalStorage$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -406,8 +435,10 @@ class PermissionsHostApi {
   }
 
   Future<bool> requestManageExternalStorage() async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.requestManageExternalStorage$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.requestManageExternalStorage$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -432,9 +463,12 @@ class PermissionsHostApi {
     }
   }
 
-  Future<Map<String, bool>> shouldShowRequestPermissionRationale(List<String> permissions) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.shouldShowRequestPermissionRationale$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+  Future<Map<String, bool>> shouldShowRequestPermissionRationale(
+      List<String> permissions) async {
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.shouldShowRequestPermissionRationale$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -455,14 +489,17 @@ class PermissionsHostApi {
         message: 'Host platform returned null value for non-null return value.',
       );
     } else {
-      return (pigeonVar_replyList[0] as Map<Object?, Object?>?)!.cast<String, bool>();
+      return (pigeonVar_replyList[0] as Map<Object?, Object?>?)!
+          .cast<String, bool>();
     }
   }
 
   /// Returns the current Android SDK level (Build.VERSION.SDK_INT).
   Future<int> getSdkVersion() async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.getSdkVersion$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.getSdkVersion$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -488,8 +525,10 @@ class PermissionsHostApi {
   }
 
   Future<bool> openAppSettings() async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.openAppSettings$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.simple_permissions_android.PermissionsHostApi.openAppSettings$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,

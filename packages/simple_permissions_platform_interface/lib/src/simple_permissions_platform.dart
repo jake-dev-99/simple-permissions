@@ -9,20 +9,12 @@ import 'permissions/permission.dart';
 /// Platform implementations (Android, iOS, macOS, etc.) extend this class
 /// and register themselves via [instance].
 ///
-/// ## v2 API
-///
-/// The v2 API uses [Permission] sealed classes instead of string-based
-/// permission identifiers:
+/// The API uses [Permission] sealed classes instead of string identifiers:
 ///
 /// - [check] / [request] — single permission
 /// - [checkAll] / [requestAll] — batch permissions
 /// - [isSupported] — version/platform check
 /// - [openAppSettings] — navigate to app settings
-///
-/// ## Deprecated v1 API
-///
-/// The v1 string-based methods are retained for backward compatibility
-/// and will be removed in v3.
 abstract class SimplePermissionsPlatform extends PlatformInterface {
   SimplePermissionsPlatform() : super(token: _token);
 
@@ -39,6 +31,12 @@ abstract class SimplePermissionsPlatform extends PlatformInterface {
   // ===========================================================================
   // v2 API — Permission sealed classes
   // ===========================================================================
+
+  /// Perform any asynchronous platform warmup needed for deterministic reads.
+  ///
+  /// Implementations may use this to cache platform capabilities that are
+  /// otherwise discovered lazily.
+  Future<void> initialize() async {}
 
   /// Check the current grant state of a single [permission].
   ///
@@ -104,8 +102,8 @@ abstract class SimplePermissionsPlatform extends PlatformInterface {
 
 /// Default platform implementation for platforms without a native plugin.
 ///
-/// Returns [PermissionGrant.granted] for all checks and requests, meaning
-/// unsupported platforms are treated as having all permissions.
+/// Returns [PermissionGrant.notApplicable] for all checks and requests so
+/// unsupported platforms are explicit rather than silently treated as granted.
 class _NoopSimplePermissionsPlatform extends SimplePermissionsPlatform {
   // ===========================================================================
   // v2 API
@@ -113,17 +111,17 @@ class _NoopSimplePermissionsPlatform extends SimplePermissionsPlatform {
 
   @override
   Future<PermissionGrant> check(Permission permission) async {
-    return PermissionGrant.granted;
+    return PermissionGrant.notApplicable;
   }
 
   @override
   Future<PermissionGrant> request(Permission permission) async {
-    return PermissionGrant.granted;
+    return PermissionGrant.notApplicable;
   }
 
   @override
-  bool isSupported(Permission permission) => true;
+  bool isSupported(Permission permission) => false;
 
   @override
-  Future<bool> openAppSettings() async => true;
+  Future<bool> openAppSettings() async => false;
 }

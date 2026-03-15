@@ -1,0 +1,27 @@
+func buildPermissionHandlerRegistry() -> [String: PermissionHandler] {
+  [
+    "read_contacts": ContactsPermissionHandler(),
+    "write_contacts": ContactsPermissionHandler(),
+    "camera_access": CameraPermissionHandler(),
+    "record_audio": MicrophonePermissionHandler(),
+    "read_media_images": PhotoLibraryPermissionHandler(),
+    "read_media_video": PhotoLibraryPermissionHandler(),
+    "post_notifications": NotificationPermissionHandler(),
+    "coarse_location": LocationPermissionHandler(level: .whenInUse),
+    "fine_location": LocationPermissionHandler(level: .whenInUse),
+    "background_location": LocationPermissionHandler(level: .always),
+    "read_calendar": CalendarPermissionHandler(entityType: .event),
+    "write_calendar": CalendarPermissionHandler(entityType: .event),
+    "read_reminders": CalendarPermissionHandler(entityType: .reminder),
+    "write_reminders": CalendarPermissionHandler(entityType: .reminder),
+    "bluetooth_connect": BluetoothPermissionHandler(),
+    "bluetooth_scan": BluetoothPermissionHandler(),
+    "bluetooth_advertise": BluetoothPermissionHandler(),
+    "speech_recognition": SpeechPermissionHandler(),
+    "read_health": HealthPermissionHandler(),
+    "write_health": HealthPermissionHandler(),
+    "body_sensors": MotionPermissionHandler(),
+    "activity_recognition": MotionPermissionHandler(),
+    "app_tracking_transparency": TrackingPermissionHandler(),
+  ]
+}

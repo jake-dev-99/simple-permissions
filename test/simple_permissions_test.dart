@@ -19,6 +19,13 @@ void main() {
       );
       await SimplePermissionsNative.initialize();
     });
+
+    test('initialize marks API initialized', () async {
+      SimplePermissionsNative.resetForTesting();
+      expect(SimplePermissionsNative.isInitialized, isFalse);
+      await SimplePermissionsNative.initialize();
+      expect(SimplePermissionsNative.isInitialized, isTrue);
+    });
   });
 
   group('v2 permission API', () {
@@ -27,12 +34,14 @@ void main() {
     });
 
     test('check returns a PermissionGrant', () async {
-      final grant = await SimplePermissionsNative.instance.check(ReadContacts());
+      final grant =
+          await SimplePermissionsNative.instance.check(ReadContacts());
       expect(grant, isA<PermissionGrant>());
     });
 
     test('request returns a PermissionGrant', () async {
-      final grant = await SimplePermissionsNative.instance.request(ReadContacts());
+      final grant =
+          await SimplePermissionsNative.instance.request(ReadContacts());
       expect(grant, isA<PermissionGrant>());
     });
 
@@ -61,11 +70,12 @@ void main() {
     });
 
     test('isSupported returns bool', () async {
-      final supported = SimplePermissionsNative.instance.isSupported(ReadContacts());
+      final supported =
+          SimplePermissionsNative.instance.isSupported(ReadContacts());
       expect(supported, isA<bool>());
     });
 
-    test('noop platform grants all permissions', () async {
+    test('noop platform marks permissions notApplicable', () async {
       final probes = <Permission>[
         ReadContacts(),
         WriteContacts(),
@@ -89,8 +99,9 @@ void main() {
         final grant = await SimplePermissionsNative.instance.check(permission);
         expect(
           grant,
-          PermissionGrant.granted,
-          reason: '${permission.identifier} should be granted on noop platform',
+          PermissionGrant.notApplicable,
+          reason:
+              '${permission.identifier} should be explicit on noop platform',
         );
       }
     });
@@ -105,36 +116,44 @@ void main() {
       final ready = await SimplePermissionsNative.instance.checkIntention(
         Intention.texting,
       );
-      expect(ready, isTrue);
+      expect(ready, isFalse);
     });
 
     test('requestIntention returns bool', () async {
       final granted = await SimplePermissionsNative.instance.requestIntention(
         Intention.contacts,
       );
-      expect(granted, isTrue);
+      expect(granted, isFalse);
     });
 
     test('checkIntentionDetailed returns PermissionResult', () async {
-      final result = await SimplePermissionsNative.instance.checkIntentionDetailed(
+      final result =
+          await SimplePermissionsNative.instance.checkIntentionDetailed(
         Intention.calling,
       );
       expect(result, isA<PermissionResult>());
       expect(result.permissions, isNotEmpty);
+      expect(result.hasUnsupported, isTrue);
     });
 
     test('requestIntentionDetailed returns PermissionResult', () async {
-      final result = await SimplePermissionsNative.instance.requestIntentionDetailed(
+      final result =
+          await SimplePermissionsNative.instance.requestIntentionDetailed(
         Intention.notifications,
       );
       expect(result, isA<PermissionResult>());
       expect(result.permissions, hasLength(1));
+      expect(result.hasUnsupported, isTrue);
     });
 
     test('built-in intentions expose permissions', () {
       final builtIns = <Intention>[
         Intention.texting,
         Intention.calling,
+        Intention.defaultSmsRole,
+        Intention.defaultDialerRole,
+        Intention.textingWithDefaultSmsRole,
+        Intention.callingWithDefaultDialerRole,
         Intention.contacts,
         Intention.device,
         Intention.mediaImages,
@@ -154,14 +173,25 @@ void main() {
 
     test('Intention.combine removes duplicate permissions', () {
       final combined = Intention.combine('comms', [
-        Intention.texting,
-        Intention.calling,
+        Intention.textingWithDefaultSmsRole,
+        Intention.callingWithDefaultDialerRole,
         Intention.device,
       ]);
 
       final identifiers =
           combined.permissions.map((p) => p.identifier).toList();
       expect(identifiers.toSet().length, identifiers.length);
+    });
+
+    test('role-free presets do not include app roles', () {
+      expect(
+        Intention.texting.permissions.any((p) => p is DefaultSmsApp),
+        isFalse,
+      );
+      expect(
+        Intention.calling.permissions.any((p) => p is DefaultDialerApp),
+        isFalse,
+      );
     });
   });
 

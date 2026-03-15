@@ -52,6 +52,11 @@ class SimplePermissionsAndroid extends SimplePermissionsPlatform {
   int? _cachedSdkVersion;
   Future<int>? _sdkVersionFuture;
 
+  @override
+  Future<void> initialize() async {
+    await _ensureSdkVersionLoaded();
+  }
+
   Future<int> _ensureSdkVersionLoaded() async {
     if (_sdkVersionOverride != null) {
       final sdk = _sdkVersionOverride();
@@ -297,17 +302,6 @@ class SimplePermissionsAndroid extends SimplePermissionsPlatform {
 
   @override
   bool isSupported(Permission permission) {
-    if (permission is VersionedPermission &&
-        _sdkVersionOverride == null &&
-        _cachedSdkVersion == null) {
-      _maybeFetchSdkVersion();
-      return permission.variants.any((variant) {
-        final handler = _registry[variant.permission.runtimeType];
-        if (handler == null) return false;
-        return _isSupportedWithUnknownSdk(handler);
-      });
-    }
-
     final sdk = _sdkVersionOverride?.call() ?? _cachedSdkVersion;
     final resolved = _resolve(permission, sdk);
     final handler = _registry[resolved.runtimeType];

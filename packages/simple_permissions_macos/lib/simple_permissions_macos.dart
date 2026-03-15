@@ -40,7 +40,10 @@ class SimplePermissionsMacos extends SimplePermissionsPlatform {
 
   @override
   Future<PermissionGrant> check(Permission permission) async {
-    final resolved = resolveVersionedForDarwin(permission);
+    final resolved = resolveVersionedForDarwin(
+      permission,
+      isMacosPermissionRegistered,
+    );
     final mapping = macosPermissionMapping(resolved.runtimeType);
 
     if (mapping == null) {
@@ -53,7 +56,10 @@ class SimplePermissionsMacos extends SimplePermissionsPlatform {
 
   @override
   Future<PermissionGrant> request(Permission permission) async {
-    final resolved = resolveVersionedForDarwin(permission);
+    final resolved = resolveVersionedForDarwin(
+      permission,
+      isMacosPermissionRegistered,
+    );
     final mapping = macosPermissionMapping(resolved.runtimeType);
 
     if (mapping == null) {
@@ -66,7 +72,10 @@ class SimplePermissionsMacos extends SimplePermissionsPlatform {
 
   @override
   bool isSupported(Permission permission) {
-    final resolved = resolveVersionedForDarwin(permission);
+    final resolved = resolveVersionedForDarwin(
+      permission,
+      isMacosPermissionRegistered,
+    );
     return isMacosPermissionRegistered(resolved.runtimeType);
   }
 

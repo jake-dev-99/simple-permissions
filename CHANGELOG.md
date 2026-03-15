@@ -1,3 +1,10 @@
+## Next
+
+- Added Apple example targets, Apple build validation, and Apple smoke-test coverage in CI.
+- Refactored iOS and macOS native handlers into domain-specific Swift files with centralized registries.
+- Split role-acquisition `Intention` presets from the default `texting` and `calling` runtime-permission presets.
+- Rewrote package documentation to reflect the current federated, Pigeon-backed architecture.
+
 ## 1.1.0
 
 - Added location accuracy API:

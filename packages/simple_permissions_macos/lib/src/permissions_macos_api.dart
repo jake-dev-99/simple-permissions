@@ -15,9 +15,6 @@ abstract interface class PermissionsMacosApi {
   /// Returns a wire string with the same values as [checkPermission].
   Future<String> requestPermission(String identifier);
 
-  /// Whether the given permission identifier is supported on this macOS version.
-  Future<bool> isSupported(String identifier);
-
   /// Open this app's settings in System Settings / System Preferences.
   Future<bool> openAppSettings();
 

@@ -54,7 +54,8 @@ class VersionedPermission extends Permission {
 
   /// Bluetooth connect — resolves to [BluetoothConnect] (API 31+) or
   /// [BluetoothLegacy] (API < 31).
-  const factory VersionedPermission.bluetoothConnect() = _VersionedBluetoothConnect;
+  const factory VersionedPermission.bluetoothConnect() =
+      _VersionedBluetoothConnect;
 
   /// Bluetooth scan — resolves to [BluetoothScan] (API 31+) or
   /// [BluetoothAdminLegacy] (API < 31).

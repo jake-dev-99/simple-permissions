@@ -10,9 +10,11 @@ class SimplePermissionsNative {
 
   static final SimplePermissionsNative instance = SimplePermissionsNative._();
   static bool _initialized = false;
+  static bool get isInitialized => _initialized;
 
   static Future<void> initialize() async {
     if (_initialized) return;
+    await SimplePermissionsPlatform.instance.initialize();
     _initialized = true;
   }
 

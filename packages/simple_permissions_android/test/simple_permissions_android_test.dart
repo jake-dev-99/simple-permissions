@@ -1171,6 +1171,22 @@ void main() {
   });
 
   group('SDK loading', () {
+    test('initialize eagerly loads SDK and caches it for sync isSupported',
+        () async {
+      final mockApi = MockPermissionsApi()..sdkVersion = 32;
+      final plugin = SimplePermissionsAndroid(api: mockApi);
+
+      await plugin.initialize();
+
+      expect(mockApi.calls, ['getSdkVersion']);
+      expect(plugin.isSupported(const ReadExternalStorage()), isTrue);
+      expect(plugin.isSupported(const ReadMediaImages()), isFalse);
+      expect(
+        mockApi.calls.where((call) => call == 'getSdkVersion').length,
+        1,
+      );
+    });
+
     test('fetches SDK before first versioned check and caches it', () async {
       final mockApi = MockPermissionsApi()
         ..sdkVersion = 32

@@ -36,7 +36,7 @@ void main() {
   group('Noop platform v2 behavior', () {
     final noop = originalInstance;
 
-    test('check returns granted for all permission types', () async {
+    test('check returns notApplicable for all permission types', () async {
       final permissions = <Permission>[
         const ReadContacts(),
         const WriteContacts(),
@@ -62,18 +62,18 @@ void main() {
         final result = await noop.check(p);
         expect(
           result,
-          PermissionGrant.granted,
-          reason: '${p.identifier} should be granted on noop platform',
+          PermissionGrant.notApplicable,
+          reason: '${p.identifier} should be explicit on noop platform',
         );
       }
     });
 
-    test('request returns granted for all permission types', () async {
+    test('request returns notApplicable for all permission types', () async {
       final result = await noop.request(const ReadContacts());
-      expect(result, PermissionGrant.granted);
+      expect(result, PermissionGrant.notApplicable);
     });
 
-    test('checkAll returns all granted', () async {
+    test('checkAll returns all unsupported', () async {
       final result = await noop.checkAll([
         const ReadContacts(),
         const WriteContacts(),
@@ -82,27 +82,30 @@ void main() {
 
       expect(result, isA<PermissionResult>());
       expect(result.permissions, hasLength(3));
-      expect(result.isFullyGranted, isTrue);
+      expect(result.isFullyGranted, isFalse);
+      expect(result.hasUnsupported, isTrue);
+      expect(result.unsupported, hasLength(3));
     });
 
-    test('requestAll returns all granted', () async {
+    test('requestAll returns all unsupported', () async {
       final result = await noop.requestAll([
         const CameraAccess(),
         const RecordAudio(),
       ]);
 
-      expect(result.isFullyGranted, isTrue);
+      expect(result.isFullyGranted, isFalse);
       expect(result.hasDenial, isFalse);
+      expect(result.hasUnsupported, isTrue);
     });
 
-    test('isSupported returns true for all permissions', () {
-      expect(noop.isSupported(const ReadContacts()), isTrue);
-      expect(noop.isSupported(const AppTrackingTransparency()), isTrue);
-      expect(noop.isSupported(const DefaultSmsApp()), isTrue);
+    test('isSupported returns false for all permissions', () {
+      expect(noop.isSupported(const ReadContacts()), isFalse);
+      expect(noop.isSupported(const AppTrackingTransparency()), isFalse);
+      expect(noop.isSupported(const DefaultSmsApp()), isFalse);
     });
 
-    test('openAppSettings returns true', () async {
-      expect(await noop.openAppSettings(), isTrue);
+    test('openAppSettings returns false', () async {
+      expect(await noop.openAppSettings(), isFalse);
     });
 
     test('checkLocationAccuracy returns notApplicable', () async {
@@ -112,9 +115,9 @@ void main() {
       );
     });
 
-    test('VersionedPermission check returns granted', () async {
+    test('VersionedPermission check returns notApplicable', () async {
       final result = await noop.check(const VersionedPermission.images());
-      expect(result, PermissionGrant.granted);
+      expect(result, PermissionGrant.notApplicable);
     });
   });
 
@@ -307,13 +310,16 @@ void main() {
       expect(result.denied, isEmpty);
     });
 
-    test('isFullyGranted treats notApplicable as satisfied', () {
+    test('isFullyGranted treats notApplicable as unsupported', () {
       const result = PermissionResult({
         SendSms(): PermissionGrant.notApplicable,
         ReadMediaImages(): PermissionGrant.limited,
         ReadContacts(): PermissionGrant.granted,
       });
-      expect(result.isFullyGranted, isTrue);
+      expect(result.isFullyGranted, isFalse);
+      expect(result.isOperational, isFalse);
+      expect(result.hasUnsupported, isTrue);
+      expect(result.unsupported, [const SendSms()]);
     });
 
     test('isFullyGranted treats provisional as satisfied', () {
@@ -323,12 +329,14 @@ void main() {
       expect(result.isFullyGranted, isTrue);
     });
 
-    test('isFullyGranted treats notAvailable as satisfied', () {
+    test('isFullyGranted treats notAvailable as unsupported', () {
       const result = PermissionResult({
         PostNotifications(): PermissionGrant.notAvailable,
         ReadContacts(): PermissionGrant.granted,
       });
-      expect(result.isFullyGranted, isTrue);
+      expect(result.isFullyGranted, isFalse);
+      expect(result.hasUnsupported, isTrue);
+      expect(result.unsupported, [const PostNotifications()]);
     });
 
     test('restricted is treated as denial', () {
@@ -369,6 +377,14 @@ void main() {
         ReadContacts(): PermissionGrant.granted,
       });
       expect(result.unavailable, [const PostNotifications()]);
+    });
+
+    test('isOperational mirrors strict readiness', () {
+      const result = PermissionResult({
+        ReadContacts(): PermissionGrant.granted,
+        WriteContacts(): PermissionGrant.provisional,
+      });
+      expect(result.isOperational, isTrue);
     });
 
     test('subscript operator looks up grant', () {
@@ -439,10 +455,29 @@ void main() {
       );
     });
 
-    test('resolveVersionedForDarwin picks unconstrained first variant', () {
-      final resolved =
-          resolveVersionedForDarwin(const VersionedPermission.images());
-      expect(resolved, isA<ReadMediaImages>());
+    test('resolveVersionedForDarwin picks first registered variant', () {
+      final resolved = resolveVersionedForDarwin(
+        const VersionedPermission.images(),
+        (type) => type == ReadExternalStorage,
+      );
+      expect(resolved, isA<ReadExternalStorage>());
+    });
+
+    test('resolveVersionedForDarwin returns original when none registered', () {
+      final resolved = resolveVersionedForDarwin(
+        const VersionedPermission.images(),
+        (_) => false,
+      );
+      expect(resolved, isA<VersionedPermission>());
+    });
+
+    test('resolveVersionedForDarwin leaves non-versioned permissions untouched',
+        () {
+      final resolved = resolveVersionedForDarwin(
+        const ReadContacts(),
+        (_) => false,
+      );
+      expect(resolved, isA<ReadContacts>());
     });
   });
 
@@ -455,7 +490,6 @@ void main() {
       expect(
         Intention.texting.permissions,
         containsAll([
-          isA<DefaultSmsApp>(),
           isA<SendSms>(),
           isA<ReadSms>(),
           isA<ReceiveSms>(),
@@ -465,10 +499,29 @@ void main() {
       expect(
         Intention.calling.permissions,
         containsAll([
-          isA<DefaultDialerApp>(),
           isA<MakeCalls>(),
           isA<AnswerCalls>(),
         ]),
+      );
+
+      expect(
+        Intention.defaultSmsRole.permissions,
+        equals([const DefaultSmsApp()]),
+      );
+
+      expect(
+        Intention.defaultDialerRole.permissions,
+        equals([const DefaultDialerApp()]),
+      );
+
+      expect(
+        Intention.textingWithDefaultSmsRole.permissions,
+        containsAll([isA<DefaultSmsApp>(), isA<SendSms>()]),
+      );
+
+      expect(
+        Intention.callingWithDefaultDialerRole.permissions,
+        containsAll([isA<DefaultDialerApp>(), isA<MakeCalls>()]),
       );
 
       expect(

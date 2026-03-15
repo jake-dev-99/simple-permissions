@@ -1,4 +1,8 @@
 include: package:flutter_lints/flutter.yaml
 
-# Additional information about this file can be found at
-# https://dart.dev/guides/language/analysis-options
+analyzer:
+  errors:
+    missing_required_param: error
+    missing_return: error
+    invalid_override_of_non_virtual_member: error
+    override_on_non_overriding_member: error

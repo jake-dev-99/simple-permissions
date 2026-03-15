@@ -15,8 +15,8 @@ import 'permissions/permissions.dart';
 ///
 /// ## Built-in intentions
 ///
-/// - [Intention.texting] — SMS/MMS messaging (role + permissions)
-/// - [Intention.calling] — Phone/dialer (role + permissions)
+/// - [Intention.texting] — SMS/MMS runtime permissions
+/// - [Intention.calling] — Phone/dialer runtime permissions
 /// - [Intention.contacts] — Read/write contacts
 /// - [Intention.device] — Phone state and device info
 /// - [Intention.mediaImages] — Photo/image access (version-aware)
@@ -26,6 +26,8 @@ import 'permissions/permissions.dart';
 /// - [Intention.location] — Fine + coarse location
 /// - [Intention.camera] — Camera access
 /// - [Intention.microphone] — Audio recording
+/// - [Intention.defaultSmsRole] — Request default SMS app role explicitly
+/// - [Intention.defaultDialerRole] — Request default dialer role explicitly
 ///
 /// ## Custom intentions
 ///
@@ -55,9 +57,8 @@ class Intention {
   // Built-in intentions
   // ===========================================================================
 
-  /// SMS/MMS messaging — become default SMS app + all messaging permissions.
+  /// SMS/MMS runtime permissions.
   static const texting = Intention('texting', [
-    DefaultSmsApp(),
     SendSms(),
     ReadSms(),
     ReceiveSms(),
@@ -65,14 +66,48 @@ class Intention {
     ReceiveWapPush(),
   ]);
 
-  /// Phone/dialer — become default dialer + call-related permissions.
+  /// Phone/dialer runtime permissions.
   static const calling = Intention('calling', [
-    DefaultDialerApp(),
     ReadPhoneState(),
     ReadPhoneNumbers(),
     MakeCalls(),
     AnswerCalls(),
   ]);
+
+  /// Request the default SMS app role explicitly.
+  static const defaultSmsRole = Intention('default_sms_role', [
+    DefaultSmsApp(),
+  ]);
+
+  /// Request the default dialer role explicitly.
+  static const defaultDialerRole = Intention('default_dialer_role', [
+    DefaultDialerApp(),
+  ]);
+
+  /// SMS/MMS runtime permissions plus the default SMS app role.
+  static const textingWithDefaultSmsRole = Intention(
+    'texting_with_default_sms_role',
+    [
+      DefaultSmsApp(),
+      SendSms(),
+      ReadSms(),
+      ReceiveSms(),
+      ReceiveMms(),
+      ReceiveWapPush(),
+    ],
+  );
+
+  /// Calling runtime permissions plus the default dialer role.
+  static const callingWithDefaultDialerRole = Intention(
+    'calling_with_default_dialer_role',
+    [
+      DefaultDialerApp(),
+      ReadPhoneState(),
+      ReadPhoneNumbers(),
+      MakeCalls(),
+      AnswerCalls(),
+    ],
+  );
 
   /// Contact access — read and write the device contact book.
   static const contacts = Intention('contacts', [

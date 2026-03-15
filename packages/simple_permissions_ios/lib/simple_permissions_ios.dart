@@ -40,7 +40,10 @@ class SimplePermissionsIos extends SimplePermissionsPlatform {
 
   @override
   Future<PermissionGrant> check(Permission permission) async {
-    final resolved = resolveVersionedForDarwin(permission);
+    final resolved = resolveVersionedForDarwin(
+      permission,
+      isIosPermissionRegistered,
+    );
     final mapping = iosPermissionMapping(resolved.runtimeType);
 
     if (mapping == null) {
@@ -53,7 +56,10 @@ class SimplePermissionsIos extends SimplePermissionsPlatform {
 
   @override
   Future<PermissionGrant> request(Permission permission) async {
-    final resolved = resolveVersionedForDarwin(permission);
+    final resolved = resolveVersionedForDarwin(
+      permission,
+      isIosPermissionRegistered,
+    );
     final mapping = iosPermissionMapping(resolved.runtimeType);
 
     if (mapping == null) {
@@ -66,7 +72,10 @@ class SimplePermissionsIos extends SimplePermissionsPlatform {
 
   @override
   bool isSupported(Permission permission) {
-    final resolved = resolveVersionedForDarwin(permission);
+    final resolved = resolveVersionedForDarwin(
+      permission,
+      isIosPermissionRegistered,
+    );
     return isIosPermissionRegistered(resolved.runtimeType);
   }
 
