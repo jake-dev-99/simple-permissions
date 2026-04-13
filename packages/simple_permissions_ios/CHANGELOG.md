@@ -1,8 +1,8 @@
-## Next
+## 1.2.0
 
 - Split native iOS permission handlers into domain files with a centralized registry.
 - Added Apple example build and smoke-test coverage for the federated plugin.
-- Updated package documentation to reflect current supported permission families and host-app requirements.
+- Added iOS/macOS handler sync documentation.
 
 ## 1.1.0
 

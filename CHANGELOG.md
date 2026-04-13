@@ -1,4 +1,4 @@
-## Unreleased
+## 1.2.0
 
 - Added Apple example targets, Apple build validation, and Apple smoke-test coverage in CI.
 - Refactored iOS and macOS native handlers into domain-specific Swift files with centralized registries.

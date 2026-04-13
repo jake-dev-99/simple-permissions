@@ -1,3 +1,8 @@
+## 1.2.0
+
+- Made `Intention` constructor `const`-constructible from user code.
+- Removed `UnmodifiableListView` wrapping from `Intention.permissions`.
+
 ## 1.1.0
 
 - Added location accuracy API surface:

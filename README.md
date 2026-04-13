@@ -10,7 +10,7 @@ Backed by Pigeon-generated native bridges for Android (Kotlin), iOS (Swift), and
 
 ```yaml
 dependencies:
-  simple_permissions_native: ^1.1.0
+  simple_permissions_native: ^1.2.0
 ```
 
 ## Quick start

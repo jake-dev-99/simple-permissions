@@ -1,8 +1,9 @@
-## Next
+## 1.2.0
 
 - Split native macOS permission handlers into domain files with a centralized registry.
 - Added Apple example build and smoke-test coverage for the federated plugin.
-- Updated package documentation to reflect current supported permission families and sandbox requirements.
+- Added `const` to `PigeonPermissionsMacosApi` constructor for consistency.
+- Added iOS/macOS handler sync documentation.
 
 ## 1.1.0
 

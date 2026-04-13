@@ -1,3 +1,10 @@
+## 1.2.0
+
+- Consolidated Kotlin system-settings boilerplate into data-driven dispatch.
+- Consolidated Dart `SystemSettingHandler` switch duplication via enum methods.
+- Removed duplicate background-location foreground check from `RuntimePermissionHandler`.
+- Added Android rationale classification documentation.
+
 ## 1.1.0
 
 - Added support for additional Android permission types:

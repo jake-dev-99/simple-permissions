@@ -7,3 +7,5 @@ dependency_overrides:
     path: packages/simple_permissions_ios
   simple_permissions_macos:
     path: packages/simple_permissions_macos
+  simple_permissions_web:
+    path: packages/simple_permissions_web

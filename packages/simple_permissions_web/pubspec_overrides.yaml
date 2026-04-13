@@ -1,0 +1,3 @@
+dependency_overrides:
+  simple_permissions_platform_interface:
+    path: ../simple_permissions_platform_interface
