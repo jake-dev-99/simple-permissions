@@ -71,7 +71,7 @@ void main() {
 
     test('isSupported returns bool', () async {
       final supported =
-          SimplePermissionsNative.instance.isSupported(ReadContacts());
+          await SimplePermissionsNative.instance.isSupported(ReadContacts());
       expect(supported, isA<bool>());
     });
 

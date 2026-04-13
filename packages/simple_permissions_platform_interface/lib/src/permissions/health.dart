@@ -2,30 +2,20 @@ part of 'permission.dart';
 
 /// Permissions related to health data access.
 ///
-/// - **Android**: Health Connect API (`android.permission.health.*`)
+/// This capability intentionally models health access as one logical grant.
+/// The previous read/write split implied a precision the platform adapters did
+/// not implement truthfully.
+///
+/// - **Android**: Not currently supported by this plugin
 /// - **iOS**: HealthKit (`HKHealthStore`)
 sealed class HealthPermission extends Permission {
   const HealthPermission();
 }
 
-/// Read health data.
-///
-/// - **Android**: Health Connect read permissions (API 34+ integrated)
-/// - **iOS**: `HKHealthStore.authorizationStatus` for read
-class ReadHealth extends HealthPermission {
-  const ReadHealth();
+/// Access health data.
+class HealthAccess extends HealthPermission {
+  const HealthAccess();
 
   @override
-  String get identifier => 'read_health';
-}
-
-/// Write health data.
-///
-/// - **Android**: Health Connect write permissions (API 34+ integrated)
-/// - **iOS**: `HKHealthStore.authorizationStatus` for write/share
-class WriteHealth extends HealthPermission {
-  const WriteHealth();
-
-  @override
-  String get identifier => 'write_health';
+  String get identifier => 'health_access';
 }

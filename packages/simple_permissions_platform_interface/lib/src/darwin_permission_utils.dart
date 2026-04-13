@@ -1,4 +1,5 @@
 import 'permission_grant.dart';
+import 'location_accuracy_status.dart';
 import 'permissions/permission.dart';
 
 /// Parses Darwin wire values from native code into [PermissionGrant].
@@ -45,4 +46,54 @@ Permission resolveVersionedForDarwin(
   }
 
   return permission;
+}
+
+typedef DarwinIdentifierLookup = String? Function(Type permissionType);
+
+Future<PermissionGrant> performDarwinPermissionOperation({
+  required Permission permission,
+  required bool Function(Type permissionType) isRegistered,
+  required DarwinIdentifierLookup identifierForType,
+  required Future<String> Function(String identifier) operation,
+}) async {
+  final resolved = resolveVersionedForDarwin(permission, isRegistered);
+  final identifier = identifierForType(resolved.runtimeType);
+  if (identifier == null) {
+    return PermissionGrant.notApplicable;
+  }
+
+  final wire = await operation(identifier);
+  return permissionGrantFromDarwinWire(wire);
+}
+
+Future<bool> checkDarwinPermissionSupport({
+  required Permission permission,
+  required bool Function(Type permissionType) isRegistered,
+  required DarwinIdentifierLookup identifierForType,
+  required Future<bool> Function(String identifier) isSupported,
+}) async {
+  final resolved = resolveVersionedForDarwin(permission, isRegistered);
+  final identifier = identifierForType(resolved.runtimeType);
+  if (identifier == null) {
+    return false;
+  }
+  return isSupported(identifier);
+}
+
+LocationAccuracyStatus locationAccuracyStatusFromDarwinWire(String? wire) {
+  switch (wire) {
+    case 'precise':
+      return LocationAccuracyStatus.precise;
+    case 'reduced':
+      return LocationAccuracyStatus.reduced;
+    case 'none':
+      return LocationAccuracyStatus.none;
+    case 'notAvailable':
+      return LocationAccuracyStatus.notAvailable;
+    case 'notApplicable':
+    case null:
+      return LocationAccuracyStatus.notApplicable;
+    default:
+      return LocationAccuracyStatus.notApplicable;
+  }
 }

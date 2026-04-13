@@ -1,3 +1,5 @@
+import 'dart:collection';
+
 import 'permissions/permission.dart';
 import 'permission_grant.dart';
 
@@ -6,7 +8,8 @@ import 'permission_grant.dart';
 /// Provides convenience getters to inspect the aggregate grant state
 /// without manually iterating the map.
 class PermissionResult {
-  const PermissionResult(this.permissions);
+  PermissionResult(Map<Permission, PermissionGrant> permissions)
+      : permissions = UnmodifiableMapView(Map.of(permissions));
 
   /// Map from each requested [Permission] to its current [PermissionGrant].
   final Map<Permission, PermissionGrant> permissions;

@@ -20,7 +20,7 @@ import io.flutter.plugin.common.PluginRegistry
 /**
  * Implementation of [PermissionsHostApi] for Android.
  *
- * Handles runtime permissions, app roles, and battery optimization using
+ * Handles runtime permissions, app roles, and system settings using
  * Android's ActivityResultLauncher pattern for async callbacks.
  */
 class PermissionsHostApiImpl(
@@ -41,6 +41,17 @@ class PermissionsHostApiImpl(
         private const val REQUEST_CODE_MANAGE_EXTERNAL_STORAGE = 9007
     }
 
+    /**
+     * Configuration for a system-setting request that follows the
+     * check → launch-intent → re-check pattern.
+     */
+    private data class SystemSettingConfig(
+        val checkGranted: () -> Boolean,
+        val intentAction: String,
+        val requestCode: Int,
+        val label: String,
+    )
+
     private val roleManager: RoleManager by lazy {
         context.getSystemService(Context.ROLE_SERVICE) as RoleManager
     }
@@ -53,14 +64,46 @@ class PermissionsHostApiImpl(
         context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     }
 
+    /** System-setting configs keyed by request code. */
+    private val systemSettings: Map<Int, SystemSettingConfig> by lazy {
+        mapOf(
+            REQUEST_CODE_BATTERY to SystemSettingConfig(
+                checkGranted = ::isIgnoringBatteryOptimizations,
+                intentAction = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                requestCode = REQUEST_CODE_BATTERY,
+                label = "battery optimization",
+            ),
+            REQUEST_CODE_SCHEDULE_EXACT_ALARM to SystemSettingConfig(
+                checkGranted = ::canScheduleExactAlarms,
+                intentAction = Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                requestCode = REQUEST_CODE_SCHEDULE_EXACT_ALARM,
+                label = "schedule-exact-alarm",
+            ),
+            REQUEST_CODE_INSTALL_PACKAGES to SystemSettingConfig(
+                checkGranted = ::canRequestInstallPackages,
+                intentAction = Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                requestCode = REQUEST_CODE_INSTALL_PACKAGES,
+                label = "install-packages",
+            ),
+            REQUEST_CODE_OVERLAY to SystemSettingConfig(
+                checkGranted = ::canDrawOverlays,
+                intentAction = Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                requestCode = REQUEST_CODE_OVERLAY,
+                label = "overlay",
+            ),
+            REQUEST_CODE_MANAGE_EXTERNAL_STORAGE to SystemSettingConfig(
+                checkGranted = ::canManageExternalStorage,
+                intentAction = Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION,
+                requestCode = REQUEST_CODE_MANAGE_EXTERNAL_STORAGE,
+                label = "manage-external-storage",
+            ),
+        )
+    }
+
     // Pending callbacks for async operations
     private var pendingPermissionsCallback: ((Result<Map<String, Boolean>>) -> Unit)? = null
     private var pendingRoleCallback: ((Result<Boolean>) -> Unit)? = null
-    private var pendingBatteryCallback: ((Result<Boolean>) -> Unit)? = null
-    private var pendingScheduleExactAlarmCallback: ((Result<Boolean>) -> Unit)? = null
-    private var pendingInstallPackagesCallback: ((Result<Boolean>) -> Unit)? = null
-    private var pendingOverlayCallback: ((Result<Boolean>) -> Unit)? = null
-    private var pendingManageExternalStorageCallback: ((Result<Boolean>) -> Unit)? = null
+    private val pendingSettingCallbacks = mutableMapOf<Int, (Result<Boolean>) -> Unit>()
     private var pendingPermissions: Array<String>? = null
     private var pendingPermissionResult: MutableMap<String, Boolean>? = null
     private var pendingRole: String? = null
@@ -74,22 +117,16 @@ class PermissionsHostApiImpl(
         // Cancel any pending callbacks
         pendingPermissionsCallback?.invoke(Result.failure(Exception("Activity detached")))
         pendingRoleCallback?.invoke(Result.failure(Exception("Activity detached")))
-        pendingBatteryCallback?.invoke(Result.failure(Exception("Activity detached")))
-        pendingScheduleExactAlarmCallback?.invoke(Result.failure(Exception("Activity detached")))
-        pendingInstallPackagesCallback?.invoke(Result.failure(Exception("Activity detached")))
-        pendingOverlayCallback?.invoke(Result.failure(Exception("Activity detached")))
-        pendingManageExternalStorageCallback?.invoke(Result.failure(Exception("Activity detached")))
+        for (callback in pendingSettingCallbacks.values) {
+            callback.invoke(Result.failure(Exception("Activity detached")))
+        }
         clearPendingState()
     }
 
     private fun clearPendingState() {
         pendingPermissionsCallback = null
         pendingRoleCallback = null
-        pendingBatteryCallback = null
-        pendingScheduleExactAlarmCallback = null
-        pendingInstallPackagesCallback = null
-        pendingOverlayCallback = null
-        pendingManageExternalStorageCallback = null
+        pendingSettingCallbacks.clear()
         pendingPermissions = null
         pendingPermissionResult = null
         pendingRole = null
@@ -218,38 +255,7 @@ class PermissionsHostApiImpl(
     }
 
     override fun requestIgnoreBatteryOptimizations(callback: (Result<Boolean>) -> Unit) {
-        if (pendingBatteryCallback != null) {
-            callback(
-                Result.failure(
-                    FlutterError(
-                        "request-in-progress",
-                        "A battery optimization request is already in progress.",
-                        "requestIgnoreBatteryOptimizations"
-                    )
-                )
-            )
-            return
-        }
-
-        val activity = activityProvider()
-        if (activity == null) {
-            Log.w(TAG, "requestIgnoreBatteryOptimizations called without attached activity")
-            callback(Result.success(false))
-            return
-        }
-
-        // Already ignoring
-        if (isIgnoringBatteryOptimizations()) {
-            callback(Result.success(true))
-            return
-        }
-
-        pendingBatteryCallback = callback
-
-        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-            data = Uri.parse("package:${context.packageName}")
-        }
-        activity.startActivityForResult(intent, REQUEST_CODE_BATTERY)
+        requestSystemSetting(REQUEST_CODE_BATTERY, callback)
     }
 
     override fun canScheduleExactAlarms(): Boolean {
@@ -258,41 +264,7 @@ class PermissionsHostApiImpl(
     }
 
     override fun requestScheduleExactAlarms(callback: (Result<Boolean>) -> Unit) {
-        if (pendingScheduleExactAlarmCallback != null) {
-            callback(
-                Result.failure(
-                    FlutterError(
-                        "request-in-progress",
-                        "A schedule-exact-alarm request is already in progress.",
-                        "requestScheduleExactAlarms"
-                    )
-                )
-            )
-            return
-        }
-
-        if (canScheduleExactAlarms()) {
-            callback(Result.success(true))
-            return
-        }
-
-        val activity = activityProvider()
-        if (activity == null) {
-            Log.w(TAG, "requestScheduleExactAlarms called without attached activity")
-            callback(Result.success(false))
-            return
-        }
-
-        if (sdkIntProvider() < Build.VERSION_CODES.S) {
-            callback(Result.success(true))
-            return
-        }
-
-        pendingScheduleExactAlarmCallback = callback
-        val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
-            data = Uri.parse("package:${context.packageName}")
-        }
-        activity.startActivityForResult(intent, REQUEST_CODE_SCHEDULE_EXACT_ALARM)
+        requestSystemSetting(REQUEST_CODE_SCHEDULE_EXACT_ALARM, callback)
     }
 
     override fun canRequestInstallPackages(): Boolean {
@@ -301,36 +273,7 @@ class PermissionsHostApiImpl(
     }
 
     override fun requestInstallPackages(callback: (Result<Boolean>) -> Unit) {
-        if (pendingInstallPackagesCallback != null) {
-            callback(
-                Result.failure(
-                    FlutterError(
-                        "request-in-progress",
-                        "An install-packages request is already in progress.",
-                        "requestInstallPackages"
-                    )
-                )
-            )
-            return
-        }
-
-        if (canRequestInstallPackages()) {
-            callback(Result.success(true))
-            return
-        }
-
-        val activity = activityProvider()
-        if (activity == null) {
-            Log.w(TAG, "requestInstallPackages called without attached activity")
-            callback(Result.success(false))
-            return
-        }
-
-        pendingInstallPackagesCallback = callback
-        val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
-            data = Uri.parse("package:${context.packageName}")
-        }
-        activity.startActivityForResult(intent, REQUEST_CODE_INSTALL_PACKAGES)
+        requestSystemSetting(REQUEST_CODE_INSTALL_PACKAGES, callback)
     }
 
     override fun canDrawOverlays(): Boolean {
@@ -339,36 +282,7 @@ class PermissionsHostApiImpl(
     }
 
     override fun requestDrawOverlays(callback: (Result<Boolean>) -> Unit) {
-        if (pendingOverlayCallback != null) {
-            callback(
-                Result.failure(
-                    FlutterError(
-                        "request-in-progress",
-                        "An overlay request is already in progress.",
-                        "requestDrawOverlays"
-                    )
-                )
-            )
-            return
-        }
-
-        if (canDrawOverlays()) {
-            callback(Result.success(true))
-            return
-        }
-
-        val activity = activityProvider()
-        if (activity == null) {
-            Log.w(TAG, "requestDrawOverlays called without attached activity")
-            callback(Result.success(false))
-            return
-        }
-
-        pendingOverlayCallback = callback
-        val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
-            data = Uri.parse("package:${context.packageName}")
-        }
-        activity.startActivityForResult(intent, REQUEST_CODE_OVERLAY)
+        requestSystemSetting(REQUEST_CODE_OVERLAY, callback)
     }
 
     override fun canManageExternalStorage(): Boolean {
@@ -377,36 +291,46 @@ class PermissionsHostApiImpl(
     }
 
     override fun requestManageExternalStorage(callback: (Result<Boolean>) -> Unit) {
-        if (pendingManageExternalStorageCallback != null) {
+        requestSystemSetting(REQUEST_CODE_MANAGE_EXTERNAL_STORAGE, callback)
+    }
+
+    /**
+     * Generic request flow for system settings that follow the same pattern:
+     * guard pending → check already granted → require activity → launch intent.
+     */
+    private fun requestSystemSetting(requestCode: Int, callback: (Result<Boolean>) -> Unit) {
+        val config = systemSettings[requestCode]!!
+
+        if (pendingSettingCallbacks.containsKey(requestCode)) {
             callback(
                 Result.failure(
                     FlutterError(
                         "request-in-progress",
-                        "A manage-external-storage request is already in progress.",
-                        "requestManageExternalStorage"
+                        "A ${config.label} request is already in progress.",
+                        config.label,
                     )
                 )
             )
             return
         }
 
-        if (canManageExternalStorage()) {
+        if (config.checkGranted()) {
             callback(Result.success(true))
             return
         }
 
         val activity = activityProvider()
         if (activity == null) {
-            Log.w(TAG, "requestManageExternalStorage called without attached activity")
+            Log.w(TAG, "${config.label} request called without attached activity")
             callback(Result.success(false))
             return
         }
 
-        pendingManageExternalStorageCallback = callback
-        val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION).apply {
+        pendingSettingCallbacks[requestCode] = callback
+        val intent = Intent(config.intentAction).apply {
             data = Uri.parse("package:${context.packageName}")
         }
-        activity.startActivityForResult(intent, REQUEST_CODE_MANAGE_EXTERNAL_STORAGE)
+        activity.startActivityForResult(intent, requestCode)
     }
 
     override fun getSdkVersion(): Long {
@@ -441,33 +365,16 @@ class PermissionsHostApiImpl(
     // =========================================================================
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
-        return when (requestCode) {
-            REQUEST_CODE_ROLE -> {
-                handleRoleResult()
-                true
-            }
-            REQUEST_CODE_BATTERY -> {
-                handleBatteryResult()
-                true
-            }
-            REQUEST_CODE_SCHEDULE_EXACT_ALARM -> {
-                handleScheduleExactAlarmResult()
-                true
-            }
-            REQUEST_CODE_INSTALL_PACKAGES -> {
-                handleInstallPackagesResult()
-                true
-            }
-            REQUEST_CODE_OVERLAY -> {
-                handleOverlayResult()
-                true
-            }
-            REQUEST_CODE_MANAGE_EXTERNAL_STORAGE -> {
-                handleManageExternalStorageResult()
-                true
-            }
-            else -> false
+        if (requestCode == REQUEST_CODE_ROLE) {
+            handleRoleResult()
+            return true
         }
+        val config = systemSettings[requestCode]
+        if (config != null) {
+            handleSystemSettingResult(requestCode, config)
+            return true
+        }
+        return false
     }
 
     /**
@@ -540,33 +447,8 @@ class PermissionsHostApiImpl(
         pendingRole = null
     }
 
-    private fun handleBatteryResult() {
-        val callback = pendingBatteryCallback ?: return
-        callback(Result.success(isIgnoringBatteryOptimizations()))
-        pendingBatteryCallback = null
-    }
-
-    private fun handleScheduleExactAlarmResult() {
-        val callback = pendingScheduleExactAlarmCallback ?: return
-        callback(Result.success(canScheduleExactAlarms()))
-        pendingScheduleExactAlarmCallback = null
-    }
-
-    private fun handleInstallPackagesResult() {
-        val callback = pendingInstallPackagesCallback ?: return
-        callback(Result.success(canRequestInstallPackages()))
-        pendingInstallPackagesCallback = null
-    }
-
-    private fun handleOverlayResult() {
-        val callback = pendingOverlayCallback ?: return
-        callback(Result.success(canDrawOverlays()))
-        pendingOverlayCallback = null
-    }
-
-    private fun handleManageExternalStorageResult() {
-        val callback = pendingManageExternalStorageCallback ?: return
-        callback(Result.success(canManageExternalStorage()))
-        pendingManageExternalStorageCallback = null
+    private fun handleSystemSettingResult(requestCode: Int, config: SystemSettingConfig) {
+        val callback = pendingSettingCallbacks.remove(requestCode) ?: return
+        callback(Result.success(config.checkGranted()))
     }
 }

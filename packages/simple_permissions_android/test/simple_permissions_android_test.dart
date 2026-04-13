@@ -24,6 +24,9 @@ class MockPermissionsApi implements PermissionsApi {
   /// Map of permission string → shouldShow? for rationale.
   Map<String, bool> rationaleResult = {};
 
+  /// Ordered rationale responses per permission for multi-step denial flows.
+  Map<String, List<bool>> rationaleSequence = {};
+
   /// Role ID → held?
   Map<String, bool> roleHeld = {};
 
@@ -73,6 +76,7 @@ class MockPermissionsApi implements PermissionsApi {
     checkResult = {};
     requestResult = {};
     rationaleResult = {};
+    rationaleSequence = {};
     roleHeld = {};
     roleRequestResult = {};
     batteryOptIgnoring = false;
@@ -183,7 +187,10 @@ class MockPermissionsApi implements PermissionsApi {
       List<String> permissions) async {
     calls.add('shouldShowRationale:${permissions.join(",")}');
     return {
-      for (final p in permissions) p: rationaleResult[p] ?? false,
+      for (final p in permissions)
+        p: rationaleSequence[p]?.isNotEmpty == true
+            ? rationaleSequence[p]!.removeAt(0)
+            : rationaleResult[p] ?? false,
     };
   }
 
@@ -283,8 +290,7 @@ void main() {
 
     test('iOS-only permissions are NOT registered', () {
       expect(registry.containsKey(AppTrackingTransparency), isFalse);
-      expect(registry.containsKey(ReadHealth), isFalse);
-      expect(registry.containsKey(WriteHealth), isFalse);
+      expect(registry.containsKey(HealthAccess), isFalse);
     });
   });
 
@@ -344,40 +350,61 @@ void main() {
     });
 
     test(
-        'request returns permanentlyDenied when rationale is false after denial',
+        'request returns denied when rationale stays false across the request',
         () async {
       const handler = RuntimePermissionHandler('android.permission.CAMERA');
       mockApi.checkResult = {'android.permission.CAMERA': false};
       mockApi.requestResult = {'android.permission.CAMERA': false};
-      mockApi.rationaleResult = {'android.permission.CAMERA': false};
+      mockApi.rationaleSequence = {
+        'android.permission.CAMERA': [false, false],
+      };
+      final result = await handler.request(mockApi);
+      expect(result, PermissionGrant.denied);
+    });
+
+    test(
+        'request returns permanentlyDenied when rationale flips from true to false',
+        () async {
+      const handler = RuntimePermissionHandler('android.permission.CAMERA');
+      mockApi.checkResult = {'android.permission.CAMERA': false};
+      mockApi.requestResult = {'android.permission.CAMERA': false};
+      mockApi.rationaleSequence = {
+        'android.permission.CAMERA': [true, false],
+      };
       final result = await handler.request(mockApi);
       expect(result, PermissionGrant.permanentlyDenied);
     });
 
-    test('background location request checks foreground grants first',
+    test(
+        'background location handler delegates foreground check to orchestrator',
         () async {
+      // The handler no longer checks foreground grants itself —
+      // SimplePermissionsAndroid.request() owns that prerequisite.
+      // The handler just does the standard request flow.
       const handler = RuntimePermissionHandler(
         'android.permission.ACCESS_BACKGROUND_LOCATION',
       );
       mockApi.checkResult = {
         'android.permission.ACCESS_BACKGROUND_LOCATION': false,
-        'android.permission.ACCESS_FINE_LOCATION': false,
-        'android.permission.ACCESS_COARSE_LOCATION': false,
       };
       mockApi.requestResult = {
-        'android.permission.ACCESS_BACKGROUND_LOCATION': false
+        'android.permission.ACCESS_BACKGROUND_LOCATION': false,
       };
       mockApi.rationaleResult = {
-        'android.permission.ACCESS_BACKGROUND_LOCATION': true
+        'android.permission.ACCESS_BACKGROUND_LOCATION': true,
       };
 
       final result = await handler.request(mockApi);
 
       expect(result, PermissionGrant.denied);
+      // Should NOT contain foreground location check — that's the
+      // orchestrator's job.
       expect(
         mockApi.calls,
-        contains(
-          'checkPermissions:android.permission.ACCESS_FINE_LOCATION,android.permission.ACCESS_COARSE_LOCATION',
+        isNot(
+          contains(
+            'checkPermissions:android.permission.ACCESS_FINE_LOCATION,android.permission.ACCESS_COARSE_LOCATION',
+          ),
         ),
       );
     });
@@ -798,7 +825,9 @@ void main() {
     test('request correctly classifies permanent denial', () async {
       mockApi.checkResult = {'android.permission.CAMERA': false};
       mockApi.requestResult = {'android.permission.CAMERA': false};
-      mockApi.rationaleResult = {'android.permission.CAMERA': false};
+      mockApi.rationaleSequence = {
+        'android.permission.CAMERA': [true, false],
+      };
       final result = await plugin.request(const CameraAccess());
       expect(result, PermissionGrant.permanentlyDenied);
     });
@@ -811,24 +840,24 @@ void main() {
       expect(result, PermissionGrant.denied);
     });
 
-    test('isSupported returns true for supported permission', () {
-      expect(plugin.isSupported(const ReadContacts()), isTrue);
+    test('isSupported returns true for supported permission', () async {
+      expect(await plugin.isSupported(const ReadContacts()), isTrue);
     });
 
-    test('isSupported returns false for iOS-only permission', () {
-      expect(plugin.isSupported(const AppTrackingTransparency()), isFalse);
+    test('isSupported returns false for iOS-only permission', () async {
+      expect(await plugin.isSupported(const AppTrackingTransparency()), isFalse);
     });
 
-    test('isSupported returns false for wrong SDK version', () {
+    test('isSupported returns false for wrong SDK version', () async {
       final plugin31 = SimplePermissionsAndroid(
         api: mockApi,
         sdkVersionOverride: () => 31,
       );
-      expect(plugin31.isSupported(const ReadMediaImages()), isFalse);
-      expect(plugin31.isSupported(const ReadExternalStorage()), isTrue);
+      expect(await plugin31.isSupported(const ReadMediaImages()), isFalse);
+      expect(await plugin31.isSupported(const ReadExternalStorage()), isTrue);
     });
 
-    test('isSupported for system settings respects SDK minimums', () {
+    test('isSupported for system settings respects SDK minimums', () async {
       final plugin22 = SimplePermissionsAndroid(
         api: mockApi,
         sdkVersionOverride: () => 22,
@@ -838,13 +867,14 @@ void main() {
         sdkVersionOverride: () => 30,
       );
       expect(
-          plugin22.isSupported(const BatteryOptimizationExemption()), isFalse);
-      expect(plugin30.isSupported(const ScheduleExactAlarm()), isFalse);
-      expect(plugin30.isSupported(const RequestInstallPackages()), isTrue);
-      expect(plugin30.isSupported(const ManageExternalStorage()), isTrue);
+          await plugin22.isSupported(const BatteryOptimizationExemption()), isFalse);
+      expect(await plugin30.isSupported(const ScheduleExactAlarm()), isFalse);
+      expect(await plugin30.isSupported(const RequestInstallPackages()), isTrue);
+      expect(await plugin30.isSupported(const ManageExternalStorage()), isTrue);
     });
 
-    test('isSupported respects SDK minimums for niche Android permissions', () {
+    test('isSupported respects SDK minimums for niche Android permissions',
+        () async {
       final plugin30 = SimplePermissionsAndroid(
         api: mockApi,
         sdkVersionOverride: () => 30,
@@ -862,10 +892,10 @@ void main() {
         sdkVersionOverride: () => 33,
       );
 
-      expect(plugin30.isSupported(const UwbRanging()), isFalse);
-      expect(plugin31.isSupported(const UwbRanging()), isTrue);
-      expect(plugin32.isSupported(const BodySensorsBackground()), isFalse);
-      expect(plugin33.isSupported(const BodySensorsBackground()), isTrue);
+      expect(await plugin30.isSupported(const UwbRanging()), isFalse);
+      expect(await plugin31.isSupported(const UwbRanging()), isTrue);
+      expect(await plugin32.isSupported(const BodySensorsBackground()), isFalse);
+      expect(await plugin33.isSupported(const BodySensorsBackground()), isTrue);
     });
 
     test('openAppSettings delegates to host API', () async {
@@ -917,7 +947,7 @@ void main() {
       );
       expect(
         mockApi.calls.where((c) => c.startsWith('shouldShowRationale')),
-        isEmpty,
+        hasLength(1),
       );
     });
 
@@ -941,11 +971,11 @@ void main() {
       expect(result[const ReadContacts()], PermissionGrant.denied);
       expect(
         result[const WriteContacts()],
-        PermissionGrant.permanentlyDenied,
+        PermissionGrant.denied,
       );
       expect(
         mockApi.calls.where((c) => c.startsWith('shouldShowRationale')).length,
-        1,
+        2,
       );
     });
 
@@ -1171,7 +1201,7 @@ void main() {
   });
 
   group('SDK loading', () {
-    test('initialize eagerly loads SDK and caches it for sync isSupported',
+    test('initialize eagerly loads SDK and caches support checks',
         () async {
       final mockApi = MockPermissionsApi()..sdkVersion = 32;
       final plugin = SimplePermissionsAndroid(api: mockApi);
@@ -1179,8 +1209,8 @@ void main() {
       await plugin.initialize();
 
       expect(mockApi.calls, ['getSdkVersion']);
-      expect(plugin.isSupported(const ReadExternalStorage()), isTrue);
-      expect(plugin.isSupported(const ReadMediaImages()), isFalse);
+      expect(await plugin.isSupported(const ReadExternalStorage()), isTrue);
+      expect(await plugin.isSupported(const ReadMediaImages()), isFalse);
       expect(
         mockApi.calls.where((call) => call == 'getSdkVersion').length,
         1,

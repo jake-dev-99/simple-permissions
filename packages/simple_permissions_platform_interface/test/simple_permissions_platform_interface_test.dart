@@ -55,7 +55,7 @@ void main() {
         const BodySensors(),
         const NearbyWifiDevices(),
         const AppTrackingTransparency(),
-        const ReadHealth(),
+        const HealthAccess(),
       ];
 
       for (final p in permissions) {
@@ -98,10 +98,10 @@ void main() {
       expect(result.hasUnsupported, isTrue);
     });
 
-    test('isSupported returns false for all permissions', () {
-      expect(noop.isSupported(const ReadContacts()), isFalse);
-      expect(noop.isSupported(const AppTrackingTransparency()), isFalse);
-      expect(noop.isSupported(const DefaultSmsApp()), isFalse);
+    test('isSupported returns false for all permissions', () async {
+      expect(await noop.isSupported(const ReadContacts()), isFalse);
+      expect(await noop.isSupported(const AppTrackingTransparency()), isFalse);
+      expect(await noop.isSupported(const DefaultSmsApp()), isFalse);
     });
 
     test('openAppSettings returns false', () async {
@@ -168,7 +168,7 @@ void main() {
         // Tracking
         AppTrackingTransparency(),
         // Health
-        ReadHealth(), WriteHealth(),
+        HealthAccess(),
       ];
 
       // Every permission has a non-empty identifier
@@ -221,7 +221,7 @@ void main() {
       expect(const DefaultSmsApp(), isA<AppRole>());
       expect(const NearbyWifiDevices(), isA<WifiPermission>());
       expect(const AppTrackingTransparency(), isA<TrackingPermission>());
-      expect(const ReadHealth(), isA<HealthPermission>());
+      expect(const HealthAccess(), isA<HealthPermission>());
     });
   });
 
@@ -298,7 +298,7 @@ void main() {
 
   group('PermissionResult', () {
     test('isFullyGranted when all granted', () {
-      const result = PermissionResult({
+      final result = PermissionResult({
         ReadContacts(): PermissionGrant.granted,
         WriteContacts(): PermissionGrant.granted,
       });
@@ -311,7 +311,7 @@ void main() {
     });
 
     test('isFullyGranted treats notApplicable as unsupported', () {
-      const result = PermissionResult({
+      final result = PermissionResult({
         SendSms(): PermissionGrant.notApplicable,
         ReadMediaImages(): PermissionGrant.limited,
         ReadContacts(): PermissionGrant.granted,
@@ -323,14 +323,14 @@ void main() {
     });
 
     test('isFullyGranted treats provisional as satisfied', () {
-      const result = PermissionResult({
+      final result = PermissionResult({
         PostNotifications(): PermissionGrant.provisional,
       });
       expect(result.isFullyGranted, isTrue);
     });
 
     test('isFullyGranted treats notAvailable as unsupported', () {
-      const result = PermissionResult({
+      final result = PermissionResult({
         PostNotifications(): PermissionGrant.notAvailable,
         ReadContacts(): PermissionGrant.granted,
       });
@@ -340,7 +340,7 @@ void main() {
     });
 
     test('restricted is treated as denial', () {
-      const result = PermissionResult({
+      final result = PermissionResult({
         ReadContacts(): PermissionGrant.restricted,
       });
       expect(result.isFullyGranted, isFalse);
@@ -349,7 +349,7 @@ void main() {
     });
 
     test('not fully granted when any denied', () {
-      const result = PermissionResult({
+      final result = PermissionResult({
         ReadContacts(): PermissionGrant.granted,
         WriteContacts(): PermissionGrant.denied,
       });
@@ -360,7 +360,7 @@ void main() {
     });
 
     test('detects permanent denial', () {
-      const result = PermissionResult({
+      final result = PermissionResult({
         ReadContacts(): PermissionGrant.permanentlyDenied,
         WriteContacts(): PermissionGrant.denied,
       });
@@ -372,7 +372,7 @@ void main() {
     });
 
     test('unavailable lists notAvailable permissions', () {
-      const result = PermissionResult({
+      final result = PermissionResult({
         PostNotifications(): PermissionGrant.notAvailable,
         ReadContacts(): PermissionGrant.granted,
       });
@@ -380,7 +380,7 @@ void main() {
     });
 
     test('isOperational mirrors strict readiness', () {
-      const result = PermissionResult({
+      final result = PermissionResult({
         ReadContacts(): PermissionGrant.granted,
         WriteContacts(): PermissionGrant.provisional,
       });
@@ -388,7 +388,7 @@ void main() {
     });
 
     test('subscript operator looks up grant', () {
-      const result = PermissionResult({
+      final result = PermissionResult({
         ReadContacts(): PermissionGrant.granted,
         WriteContacts(): PermissionGrant.denied,
       });
@@ -398,24 +398,38 @@ void main() {
     });
 
     test('toString contains PermissionResult', () {
-      const result = PermissionResult({
+      final result = PermissionResult({
         ReadContacts(): PermissionGrant.granted,
       });
       expect(result.toString(), contains('PermissionResult'));
     });
 
     test('value equality and hashCode are stable for equivalent maps', () {
-      const a = PermissionResult({
+      final a = PermissionResult({
         ReadContacts(): PermissionGrant.granted,
         ReadMediaImages(): PermissionGrant.limited,
       });
-      const b = PermissionResult({
+      final b = PermissionResult({
         ReadMediaImages(): PermissionGrant.limited,
         ReadContacts(): PermissionGrant.granted,
       });
 
       expect(a, equals(b));
       expect(a.hashCode, equals(b.hashCode));
+    });
+
+    test('defensively copies input maps', () {
+      final source = <Permission, PermissionGrant>{
+        const ReadContacts(): PermissionGrant.granted,
+      };
+      final result = PermissionResult(source);
+      source[const WriteContacts()] = PermissionGrant.denied;
+
+      expect(result.permissions, hasLength(1));
+      expect(
+        () => result.permissions[const WriteContacts()] = PermissionGrant.denied,
+        throwsUnsupportedError,
+      );
     });
   });
 
@@ -568,7 +582,7 @@ void main() {
     test('combine deduplicates permissions by identifier', () {
       final combined = Intention.combine('test', [
         Intention.contacts,
-        const Intention('also_contacts', [ReadContacts(), CameraAccess()]),
+        Intention('also_contacts', [ReadContacts(), CameraAccess()]),
       ]);
 
       expect(combined.name, 'test');
@@ -585,13 +599,24 @@ void main() {
     });
 
     test('custom Intention construction', () {
-      const custom = Intention('my_feature', [
+      final custom = Intention('my_feature', [
         CameraAccess(),
         RecordAudio(),
         FineLocation(),
       ]);
       expect(custom.name, 'my_feature');
       expect(custom.permissions, hasLength(3));
+    });
+
+    test('const-constructed Intentions have immutable permission lists', () {
+      const custom = Intention('my_feature', [CameraAccess(), RecordAudio()]);
+      expect(custom.permissions, hasLength(2));
+
+      // Const lists are inherently unmodifiable.
+      expect(
+        () => (custom.permissions as List).add(const FineLocation()),
+        throwsUnsupportedError,
+      );
     });
 
     test('toString includes name and count', () {
@@ -654,7 +679,7 @@ class _GoodPlatform extends SimplePermissionsPlatform {
   Future<PermissionGrant> request(Permission p) async =>
       PermissionGrant.granted;
   @override
-  bool isSupported(Permission p) => true;
+  Future<bool> isSupported(Permission p) async => true;
   @override
   Future<bool> openAppSettings() async => true;
   @override
@@ -671,7 +696,7 @@ class _MockPlatform extends SimplePermissionsPlatform
   Future<PermissionGrant> request(Permission p) async =>
       PermissionGrant.granted;
   @override
-  bool isSupported(Permission p) => true;
+  Future<bool> isSupported(Permission p) async => true;
   @override
   Future<bool> openAppSettings() async => true;
   @override

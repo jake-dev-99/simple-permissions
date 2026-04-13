@@ -84,7 +84,7 @@ abstract class SimplePermissionsPlatform extends PlatformInterface {
   /// Returns `false` for permissions that don't exist on this platform
   /// (e.g., Android roles on iOS) or aren't available at the running OS
   /// version (e.g., `POST_NOTIFICATIONS` on Android < 33).
-  bool isSupported(Permission permission);
+  Future<bool> isSupported(Permission permission);
 
   /// Open the system settings page for this app.
   ///
@@ -120,7 +120,7 @@ class _NoopSimplePermissionsPlatform extends SimplePermissionsPlatform {
   }
 
   @override
-  bool isSupported(Permission permission) => false;
+  Future<bool> isSupported(Permission permission) async => false;
 
   @override
   Future<bool> openAppSettings() async => false;

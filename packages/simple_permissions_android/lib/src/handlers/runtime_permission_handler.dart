@@ -37,62 +37,26 @@ class RuntimePermissionHandler extends PermissionHandler {
 
   @override
   Future<PermissionGrant> request(PermissionsApi api) async {
-    // 1. Check current state before requesting — needed to distinguish
-    //    "first denial" from "permanently denied" afterward.
     final preCheck = await api.checkPermissions([androidPermission]);
-    if (preCheck[androidPermission] == true) {
+    final wasGrantedBeforeRequest = preCheck[androidPermission] == true;
+    if (wasGrantedBeforeRequest) {
       return PermissionGrant.granted;
     }
 
-    if (androidPermission == 'android.permission.ACCESS_BACKGROUND_LOCATION') {
-      final foreground = await api.checkPermissions([
-        'android.permission.ACCESS_FINE_LOCATION',
-        'android.permission.ACCESS_COARSE_LOCATION',
-      ]);
-      if (foreground['android.permission.ACCESS_FINE_LOCATION'] != true &&
-          foreground['android.permission.ACCESS_COARSE_LOCATION'] != true) {
-        developer.log(
-          'BackgroundLocation request started without foreground location '
-          'grant. On Android 30+, request fine/coarse first, then request '
-          'background in a separate step.',
-          name: 'simple_permissions_android',
-        );
-      }
-    }
+    final preRequestRationale =
+        await api.shouldShowRequestPermissionRationale([androidPermission]);
+    final showedRationaleBeforeRequest =
+        preRequestRationale[androidPermission] ?? false;
 
-    // 2. Request the permission.
     final result = await api.requestPermissions([androidPermission]);
-    if (result[androidPermission] == true) {
-      return PermissionGrant.granted;
-    }
-
-    // 3. Denied — determine severity using rationale API.
-    //
-    // shouldShowRequestPermissionRationale behavior:
-    //   - true  → user denied, but did NOT check "Don't ask again"
-    //   - false → either:
-    //       (a) user checked "Don't ask again" → permanently denied
-    //       (b) first-time denial on some devices  → just denied
-    //       (c) policy-restricted → restricted
-    //
-    // We check whether rationale was showing BEFORE the request to
-    // disambiguate (a) from (b). If rationale was false pre-request AND
-    // false post-request, this is a first denial. If rationale was true
-    // pre-request but false post-request, user selected "Don't ask again".
     final rationale =
         await api.shouldShowRequestPermissionRationale([androidPermission]);
-    final shouldShowRationale = rationale[androidPermission] ?? false;
-
-    if (shouldShowRationale) {
-      // User denied but can be asked again.
-      return PermissionGrant.denied;
-    }
-
-    // Rationale is false after denial. This means either:
-    // - User checked "Don't ask again" (permanently denied)
-    // - The permission was never requestable (policy/restricted)
-    // Since we know the request just happened, this is permanent.
-    return PermissionGrant.permanentlyDenied;
+    return classifyRuntimeDenial(
+      wasGrantedBeforeRequest: wasGrantedBeforeRequest,
+      isGrantedAfterRequest: result[androidPermission] == true,
+      showedRationaleBeforeRequest: showedRationaleBeforeRequest,
+      shouldShowRationaleAfterRequest: rationale[androidPermission] ?? false,
+    );
   }
 
   @override

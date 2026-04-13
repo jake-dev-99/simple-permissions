@@ -15,6 +15,9 @@ abstract interface class PermissionsIosApi {
   /// Returns a wire string with the same values as [checkPermission].
   Future<String> requestPermission(String identifier);
 
+  /// Whether the permission identifier is supported on the running device/OS.
+  Future<bool> isSupported(String identifier);
+
   /// Open this app's settings page in the Settings app.
   Future<bool> openAppSettings();
 

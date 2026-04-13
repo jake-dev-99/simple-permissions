@@ -1,9 +1,16 @@
-## Next
+## Unreleased
 
 - Added Apple example targets, Apple build validation, and Apple smoke-test coverage in CI.
 - Refactored iOS and macOS native handlers into domain-specific Swift files with centralized registries.
 - Split role-acquisition `Intention` presets from the default `texting` and `calling` runtime-permission presets.
-- Rewrote package documentation to reflect the current federated, Pigeon-backed architecture.
+- Consolidated Android Kotlin system-settings boilerplate into a data-driven dispatch pattern.
+- Consolidated Dart `SystemSettingHandler` switch duplication via `SystemSettingType` enum methods.
+- Removed duplicate background-location foreground check from `RuntimePermissionHandler` (orchestrator owns this logic).
+- Expanded README with platform setup guides, `PermissionGrant` state table, `Intention` reference, and usage examples.
+- Improved example app with Intention-based flows, batch requests, and denied-state handling.
+- Made `Intention` const-constructible from user code (removed `UnmodifiableListView` wrapping).
+- Added symmetric Kotlin test coverage for all system-setting request flows (overlay, install packages, schedule exact alarms).
+- Added web platform support (`simple_permissions_web`) with browser Permissions API for camera, microphone, geolocation, and notifications.
 
 ## 1.1.0
 

@@ -67,3 +67,6 @@ MacosPermissionMapping? macosPermissionMapping(Type permissionType) =>
 /// Whether the given [Permission] type has a registered macOS handler.
 bool isMacosPermissionRegistered(Type permissionType) =>
     _macosRegistry.containsKey(permissionType);
+
+String? macosPermissionIdentifier(Type permissionType) =>
+    _macosRegistry[permissionType]?.identifier;

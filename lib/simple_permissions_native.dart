@@ -39,7 +39,7 @@ class SimplePermissionsNative {
     return _ensureInitialized().requestAll(permissions);
   }
 
-  bool isSupported(Permission permission) {
+  Future<bool> isSupported(Permission permission) {
     return _ensureInitialized().isSupported(permission);
   }
 

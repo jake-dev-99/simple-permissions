@@ -303,7 +303,7 @@ Map<Type, PermissionHandler> buildAndroidPermissionRegistry() {
       minSdk: 33,
     ),
   };
-  // Note: TrackingPermission (AppTrackingTransparency), HealthPermission
-  // (ReadHealth, WriteHealth) are intentionally NOT registered — they are
+  // Note: TrackingPermission (AppTrackingTransparency) and HealthPermission
+  // (HealthAccess) are intentionally NOT registered — they are
   // iOS-only concepts and will resolve to notApplicable on Android.
 }

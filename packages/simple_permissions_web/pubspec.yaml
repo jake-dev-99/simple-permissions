@@ -1,0 +1,30 @@
+name: simple_permissions_web
+description: "Web implementation for simple_permissions_native."
+version: 1.1.0
+homepage: https://github.com/simplezen/simple-permissions
+repository: https://github.com/simplezen/simple-permissions
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
+  simple_permissions_platform_interface:
+    path: ../simple_permissions_platform_interface
+  web: ^1.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  plugin:
+    implements: simple_permissions_native
+    platforms:
+      web:
+        pluginClass: SimplePermissionsWeb
+        fileName: simple_permissions_web.dart

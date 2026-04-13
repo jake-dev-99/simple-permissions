@@ -17,6 +17,9 @@ class PigeonPermissionsIosApi implements PermissionsIosApi {
       _hostApi.requestPermission(identifier);
 
   @override
+  Future<bool> isSupported(String identifier) => _hostApi.isSupported(identifier);
+
+  @override
   Future<bool> openAppSettings() => _hostApi.openAppSettings();
 
   @override

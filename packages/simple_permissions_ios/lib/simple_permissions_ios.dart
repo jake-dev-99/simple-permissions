@@ -40,44 +40,31 @@ class SimplePermissionsIos extends SimplePermissionsPlatform {
 
   @override
   Future<PermissionGrant> check(Permission permission) async {
-    final resolved = resolveVersionedForDarwin(
-      permission,
-      isIosPermissionRegistered,
+    return performDarwinPermissionOperation(
+      permission: permission,
+      isRegistered: isIosPermissionRegistered,
+      identifierForType: iosPermissionIdentifier,
+      operation: _api.checkPermission,
     );
-    final mapping = iosPermissionMapping(resolved.runtimeType);
-
-    if (mapping == null) {
-      return PermissionGrant.notApplicable;
-    }
-
-    final wire = await _api.checkPermission(mapping.identifier);
-    return permissionGrantFromDarwinWire(wire);
   }
 
   @override
   Future<PermissionGrant> request(Permission permission) async {
-    final resolved = resolveVersionedForDarwin(
-      permission,
-      isIosPermissionRegistered,
+    return performDarwinPermissionOperation(
+      permission: permission,
+      isRegistered: isIosPermissionRegistered,
+      identifierForType: iosPermissionIdentifier,
+      operation: _api.requestPermission,
     );
-    final mapping = iosPermissionMapping(resolved.runtimeType);
-
-    if (mapping == null) {
-      return PermissionGrant.notApplicable;
-    }
-
-    final wire = await _api.requestPermission(mapping.identifier);
-    return permissionGrantFromDarwinWire(wire);
   }
 
   @override
-  bool isSupported(Permission permission) {
-    final resolved = resolveVersionedForDarwin(
-      permission,
-      isIosPermissionRegistered,
-    );
-    return isIosPermissionRegistered(resolved.runtimeType);
-  }
+  Future<bool> isSupported(Permission permission) => checkDarwinPermissionSupport(
+        permission: permission,
+        isRegistered: isIosPermissionRegistered,
+        identifierForType: iosPermissionIdentifier,
+        isSupported: _api.isSupported,
+      );
 
   @override
   Future<bool> openAppSettings() => _api.openAppSettings();
@@ -85,19 +72,6 @@ class SimplePermissionsIos extends SimplePermissionsPlatform {
   @override
   Future<LocationAccuracyStatus> checkLocationAccuracy() async {
     final wire = await _api.checkLocationAccuracy();
-    switch (wire) {
-      case 'precise':
-        return LocationAccuracyStatus.precise;
-      case 'reduced':
-        return LocationAccuracyStatus.reduced;
-      case 'none':
-        return LocationAccuracyStatus.none;
-      case 'notAvailable':
-        return LocationAccuracyStatus.notAvailable;
-      case 'notApplicable':
-        return LocationAccuracyStatus.notApplicable;
-      default:
-        return LocationAccuracyStatus.notApplicable;
-    }
+    return locationAccuracyStatusFromDarwinWire(wire);
   }
 }

@@ -339,4 +339,115 @@ internal class PermissionsHostApiImplTest {
 
     assertTrue(result)
   }
+
+  // =========================================================================
+  // Overlay (draw overlays) — symmetric coverage
+  // =========================================================================
+
+  @Test
+  fun requestDrawOverlays_returnsTrueWhenAlreadyGranted() {
+    val h = Harness()
+    // Settings.canDrawOverlays is static and hard to mock, so we test via
+    // SDK < M path where canDrawOverlays always returns true.
+    h.sdkInt = 22
+
+    var callbackValue: Boolean? = null
+    h.subject.requestDrawOverlays { callbackValue = it.getOrNull() }
+
+    assertEquals(true, callbackValue)
+    verify(h.activity, times(0)).startActivityForResult(any(Intent::class.java), eq(9006))
+  }
+
+  @Test
+  fun requestDrawOverlays_launchesIntentWithPackageUri() {
+    val h = Harness()
+    // Need SDK >= M (23) and canDrawOverlays returning false.
+    // Since Settings.canDrawOverlays is static, we need SDK >= 23 and the
+    // default mock context which will cause canDrawOverlays to return false.
+    h.sdkInt = 23
+
+    h.subject.requestDrawOverlays { }
+
+    val intentCaptor = ArgumentCaptor.forClass(Intent::class.java)
+    verify(h.activity).startActivityForResult(intentCaptor.capture(), eq(9006))
+    val intent = intentCaptor.value
+    assertEquals(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, intent.action)
+    assertEquals("package:io.simplezen.simple_permissions", intent.dataString)
+  }
+
+  @Test
+  fun requestDrawOverlays_returnsRequestInProgressError_whenPending() {
+    val h = Harness()
+    h.sdkInt = 23
+    h.subject.requestDrawOverlays { }
+
+    var errorCode: String? = null
+    h.subject.requestDrawOverlays {
+      errorCode = (it.exceptionOrNull() as? FlutterError)?.code
+    }
+
+    assertEquals("request-in-progress", errorCode)
+  }
+
+  // =========================================================================
+  // Install packages — symmetric coverage
+  // =========================================================================
+
+  @Test
+  fun requestInstallPackages_returnsTrueWhenAlreadyGranted() {
+    val h = Harness()
+    // SDK < O path where canRequestInstallPackages always returns true.
+    h.sdkInt = 25
+
+    var callbackValue: Boolean? = null
+    h.subject.requestInstallPackages { callbackValue = it.getOrNull() }
+
+    assertEquals(true, callbackValue)
+    verify(h.activity, times(0)).startActivityForResult(any(Intent::class.java), eq(9005))
+  }
+
+  @Test
+  fun requestInstallPackages_launchesIntentWithPackageUri() {
+    val h = Harness()
+    h.sdkInt = 26
+    `when`(h.packageManager.canRequestPackageInstalls()).thenReturn(false)
+
+    h.subject.requestInstallPackages { }
+
+    val intentCaptor = ArgumentCaptor.forClass(Intent::class.java)
+    verify(h.activity).startActivityForResult(intentCaptor.capture(), eq(9005))
+    val intent = intentCaptor.value
+    assertEquals(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, intent.action)
+    assertEquals("package:io.simplezen.simple_permissions", intent.dataString)
+  }
+
+  // =========================================================================
+  // Schedule exact alarms — fill gaps
+  // =========================================================================
+
+  @Test
+  fun requestScheduleExactAlarms_returnsTrueWhenAlreadyGranted() {
+    val h = Harness()
+    `when`(h.alarmManager.canScheduleExactAlarms()).thenReturn(true)
+
+    var callbackValue: Boolean? = null
+    h.subject.requestScheduleExactAlarms { callbackValue = it.getOrNull() }
+
+    assertEquals(true, callbackValue)
+    verify(h.activity, times(0)).startActivityForResult(any(Intent::class.java), eq(9004))
+  }
+
+  @Test
+  fun requestScheduleExactAlarms_returnsRequestInProgressError_whenPending() {
+    val h = Harness()
+    `when`(h.alarmManager.canScheduleExactAlarms()).thenReturn(false)
+    h.subject.requestScheduleExactAlarms { }
+
+    var errorCode: String? = null
+    h.subject.requestScheduleExactAlarms {
+      errorCode = (it.exceptionOrNull() as? FlutterError)?.code
+    }
+
+    assertEquals("request-in-progress", errorCode)
+  }
 }

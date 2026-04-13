@@ -17,91 +17,63 @@ class SystemSettingHandler extends PermissionHandler {
 
   @override
   Future<PermissionGrant> check(PermissionsApi api) async {
-    switch (settingType) {
-      case SystemSettingType.batteryOptimization:
-        final ignoring = await api.isIgnoringBatteryOptimizations();
-        return ignoring ? PermissionGrant.granted : PermissionGrant.denied;
-      case SystemSettingType.scheduleExactAlarm:
-        final canSchedule = await api.canScheduleExactAlarms();
-        return canSchedule ? PermissionGrant.granted : PermissionGrant.denied;
-      case SystemSettingType.requestInstallPackages:
-        final canRequest = await api.canRequestInstallPackages();
-        return canRequest ? PermissionGrant.granted : PermissionGrant.denied;
-      case SystemSettingType.systemAlertWindow:
-        final canDraw = await api.canDrawOverlays();
-        return canDraw ? PermissionGrant.granted : PermissionGrant.denied;
-      case SystemSettingType.manageExternalStorage:
-        final canManage = await api.canManageExternalStorage();
-        return canManage ? PermissionGrant.granted : PermissionGrant.denied;
-    }
+    final granted = await settingType._checkFn(api);
+    return granted ? PermissionGrant.granted : PermissionGrant.denied;
   }
 
   @override
   Future<PermissionGrant> request(PermissionsApi api) async {
-    switch (settingType) {
-      case SystemSettingType.batteryOptimization:
-        final ignoring = await api.isIgnoringBatteryOptimizations();
-        if (ignoring) return PermissionGrant.granted;
-        final granted = await api.requestIgnoreBatteryOptimizations();
-        return granted ? PermissionGrant.granted : PermissionGrant.denied;
-      case SystemSettingType.scheduleExactAlarm:
-        final canSchedule = await api.canScheduleExactAlarms();
-        if (canSchedule) return PermissionGrant.granted;
-        final granted = await api.requestScheduleExactAlarms();
-        return granted ? PermissionGrant.granted : PermissionGrant.denied;
-      case SystemSettingType.requestInstallPackages:
-        final canRequest = await api.canRequestInstallPackages();
-        if (canRequest) return PermissionGrant.granted;
-        final granted = await api.requestInstallPackages();
-        return granted ? PermissionGrant.granted : PermissionGrant.denied;
-      case SystemSettingType.systemAlertWindow:
-        final canDraw = await api.canDrawOverlays();
-        if (canDraw) return PermissionGrant.granted;
-        final granted = await api.requestDrawOverlays();
-        return granted ? PermissionGrant.granted : PermissionGrant.denied;
-      case SystemSettingType.manageExternalStorage:
-        final canManage = await api.canManageExternalStorage();
-        if (canManage) return PermissionGrant.granted;
-        final granted = await api.requestManageExternalStorage();
-        return granted ? PermissionGrant.granted : PermissionGrant.denied;
-    }
+    if (await settingType._checkFn(api)) return PermissionGrant.granted;
+    final granted = await settingType._requestFn(api);
+    return granted ? PermissionGrant.granted : PermissionGrant.denied;
   }
 
   @override
-  bool isSupported(SdkVersionProvider sdkVersion) {
-    final sdk = sdkVersion();
-    switch (settingType) {
-      case SystemSettingType.batteryOptimization:
-        return sdk >= 23;
-      case SystemSettingType.scheduleExactAlarm:
-        return sdk >= 31;
-      case SystemSettingType.requestInstallPackages:
-        return sdk >= 26;
-      case SystemSettingType.systemAlertWindow:
-        return sdk >= 23;
-      case SystemSettingType.manageExternalStorage:
-        return sdk >= 30;
-    }
-  }
+  bool isSupported(SdkVersionProvider sdkVersion) =>
+      sdkVersion() >= settingType._minSdk;
 }
 
 /// The kinds of system settings that [SystemSettingHandler] can manage.
 enum SystemSettingType {
   /// Battery optimization exemption via
   /// `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`.
-  batteryOptimization,
+  batteryOptimization(23),
 
   /// Exact alarm scheduling via `ACTION_REQUEST_SCHEDULE_EXACT_ALARM`.
-  scheduleExactAlarm,
+  scheduleExactAlarm(31),
 
   /// Install packages from unknown sources via
   /// `ACTION_MANAGE_UNKNOWN_APP_SOURCES`.
-  requestInstallPackages,
+  requestInstallPackages(26),
 
   /// Draw overlays on top of other apps via `ACTION_MANAGE_OVERLAY_PERMISSION`.
-  systemAlertWindow,
+  systemAlertWindow(23),
 
   /// Manage all files access via
   /// `ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION`.
-  manageExternalStorage,
+  manageExternalStorage(30);
+
+  const SystemSettingType(this._minSdk);
+
+  /// Minimum Android SDK level where this setting is applicable.
+  final int _minSdk;
+
+  /// Returns the check function for this setting type.
+  Future<bool> Function(PermissionsApi) get _checkFn => switch (this) {
+        batteryOptimization => (api) => api.isIgnoringBatteryOptimizations(),
+        scheduleExactAlarm => (api) => api.canScheduleExactAlarms(),
+        requestInstallPackages => (api) => api.canRequestInstallPackages(),
+        systemAlertWindow => (api) => api.canDrawOverlays(),
+        manageExternalStorage => (api) => api.canManageExternalStorage(),
+      };
+
+  /// Returns the request function for this setting type.
+  Future<bool> Function(PermissionsApi) get _requestFn => switch (this) {
+        batteryOptimization => (api) =>
+            api.requestIgnoreBatteryOptimizations(),
+        scheduleExactAlarm => (api) => api.requestScheduleExactAlarms(),
+        requestInstallPackages => (api) => api.requestInstallPackages(),
+        systemAlertWindow => (api) => api.requestDrawOverlays(),
+        manageExternalStorage => (api) => api.requestManageExternalStorage(),
+      };
 }

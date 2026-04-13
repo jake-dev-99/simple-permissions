@@ -7,29 +7,13 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
-class SmokePermissionCase {
-  const SmokePermissionCase({required this.label, required this.permission});
-
-  final String label;
-  final Permission permission;
-
-  String get identifier => permission.identifier;
-}
-
-const smokePermissions = <SmokePermissionCase>[
-  SmokePermissionCase(label: 'Contacts', permission: ReadContacts()),
-  SmokePermissionCase(label: 'Camera', permission: CameraAccess()),
-  SmokePermissionCase(label: 'Microphone', permission: RecordAudio()),
-  SmokePermissionCase(label: 'Location', permission: FineLocation()),
-];
-
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: const SmokeHarnessPage(),
+      home: const PermissionsDemo(),
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2563EB)),
       ),
@@ -37,172 +21,256 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class SmokeHarnessPage extends StatefulWidget {
-  const SmokeHarnessPage({super.key});
+// =============================================================================
+// Demo page
+// =============================================================================
+
+class PermissionsDemo extends StatefulWidget {
+  const PermissionsDemo({super.key});
 
   @override
-  State<SmokeHarnessPage> createState() => _SmokeHarnessPageState();
+  State<PermissionsDemo> createState() => _PermissionsDemoState();
 }
 
-class _SmokeHarnessPageState extends State<SmokeHarnessPage> {
-  final Map<String, bool> _supported = {};
-  final Map<String, PermissionGrant?> _lastCheck = {};
-  final Map<String, PermissionGrant?> _lastRequest = {};
-  LocationAccuracyStatus? _locationAccuracy;
-  bool _busy = false;
+class _PermissionsDemoState extends State<PermissionsDemo> {
+  final _perms = SimplePermissionsNative.instance;
+  final _log = <String>[];
 
-  @override
-  void initState() {
-    super.initState();
-    _primeSupportState();
+  void _addLog(String message) {
+    setState(() => _log.insert(0, message));
   }
 
-  Future<void> _primeSupportState() async {
-    final support = <String, bool>{
-      for (final item in smokePermissions)
-        item.identifier: SimplePermissionsNative.instance.isSupported(
-          item.permission,
-        ),
-    };
-    final locationAccuracy =
-        await SimplePermissionsNative.instance.checkLocationAccuracy();
-    if (!mounted) return;
-    setState(() {
-      _supported
-        ..clear()
-        ..addAll(support);
-      _locationAccuracy = locationAccuracy;
-    });
+  // ---------------------------------------------------------------------------
+  // Single permission check/request
+  // ---------------------------------------------------------------------------
+
+  static const _singlePermissions = <(String, Permission)>[
+    ('Contacts', ReadContacts()),
+    ('Camera', CameraAccess()),
+    ('Microphone', RecordAudio()),
+    ('Location', FineLocation()),
+  ];
+
+  Future<void> _checkSingle(Permission permission, String label) async {
+    final grant = await _perms.check(permission);
+    _addLog('check($label) = ${grant.name}');
   }
 
-  Future<void> _checkPermission(SmokePermissionCase item) async {
-    setState(() {
-      _busy = true;
-    });
-    final grant = await SimplePermissionsNative.instance.check(item.permission);
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _lastCheck[item.identifier] = grant;
-    });
+  Future<void> _requestSingle(Permission permission, String label) async {
+    final grant = await _perms.request(permission);
+    _addLog('request($label) = ${grant.name}');
+
+    if (grant == PermissionGrant.permanentlyDenied) {
+      _addLog('  -> permanentlyDenied: call openAppSettings()');
+    }
   }
 
-  Future<void> _requestPermission(SmokePermissionCase item) async {
-    setState(() {
-      _busy = true;
-    });
-    final grant = await SimplePermissionsNative.instance.request(
-      item.permission,
-    );
-    if (!mounted) return;
-    setState(() {
-      _busy = false;
-      _lastRequest[item.identifier] = grant;
-    });
+  // ---------------------------------------------------------------------------
+  // Batch request
+  // ---------------------------------------------------------------------------
+
+  Future<void> _batchRequest() async {
+    final result = await _perms.requestAll(const [
+      CameraAccess(),
+      RecordAudio(),
+      FineLocation(),
+    ]);
+
+    _addLog('requestAll(camera, mic, location):');
+    _addLog('  isFullyGranted = ${result.isFullyGranted}');
+
+    if (result.hasDenial) {
+      _addLog('  denied = ${result.denied.map((p) => p.identifier).join(', ')}');
+    }
+    if (result.requiresSettings) {
+      _addLog('  permanentlyDenied = ${result.permanentlyDenied.map((p) => p.identifier).join(', ')}');
+    }
+    if (result.hasUnsupported) {
+      _addLog('  unsupported = ${result.unsupported.map((p) => p.identifier).join(', ')}');
+    }
   }
 
-  String _grantLabel(PermissionGrant? grant) => grant?.name ?? 'pending';
+  // ---------------------------------------------------------------------------
+  // Intention-based request
+  // ---------------------------------------------------------------------------
+
+  Future<void> _requestIntention(Intention intention) async {
+    final result = await _perms.requestIntentionDetailed(intention);
+    _addLog('requestIntention(${intention.name}):');
+    _addLog('  isFullyGranted = ${result.isFullyGranted}');
+
+    for (final entry in result.permissions.entries) {
+      _addLog('  ${entry.key.identifier} = ${entry.value.name}');
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Versioned permission
+  // ---------------------------------------------------------------------------
+
+  Future<void> _requestVersioned() async {
+    final permission = VersionedPermission.images();
+    final grant = await _perms.request(permission);
+    _addLog('request(VersionedPermission.images()) = ${grant.name}');
+    _addLog('  resolved identifier = ${permission.identifier}');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Utilities
+  // ---------------------------------------------------------------------------
+
+  Future<void> _openSettings() async {
+    final opened = await _perms.openAppSettings();
+    _addLog('openAppSettings() = $opened');
+  }
+
+  Future<void> _checkLocationAccuracy() async {
+    final accuracy = await _perms.checkLocationAccuracy();
+    _addLog('checkLocationAccuracy() = ${accuracy.name}');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Build
+  // ---------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Simple Permissions Smoke Harness')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Initialized: ${SimplePermissionsNative.isInitialized}',
-              key: const Key('initialized-status'),
-            ),
-            Text(
-              'Location accuracy: ${_locationAccuracy?.name ?? "loading"}',
-              key: const Key('location-accuracy-status'),
-            ),
-            const SizedBox(height: 16),
-            for (final item in smokePermissions)
-              _PermissionTile(
-                item: item,
-                busy: _busy,
-                supported: _supported[item.identifier] ?? false,
-                lastCheck: _lastCheck[item.identifier],
-                lastRequest: _lastRequest[item.identifier],
-                onCheck: () => _checkPermission(item),
-                onRequest: () => _requestPermission(item),
-                grantLabel: _grantLabel,
-              ),
-          ],
-        ),
+      appBar: AppBar(
+        title: const Text('Simple Permissions Demo'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () => setState(() => _log.clear()),
+            tooltip: 'Clear log',
+          ),
+        ],
       ),
-    );
-  }
-}
-
-class _PermissionTile extends StatelessWidget {
-  const _PermissionTile({
-    required this.item,
-    required this.busy,
-    required this.supported,
-    required this.lastCheck,
-    required this.lastRequest,
-    required this.onCheck,
-    required this.onRequest,
-    required this.grantLabel,
-  });
-
-  final SmokePermissionCase item;
-  final bool busy;
-  final bool supported;
-  final PermissionGrant? lastCheck;
-  final PermissionGrant? lastRequest;
-  final VoidCallback onCheck;
-  final VoidCallback onRequest;
-  final String Function(PermissionGrant? grant) grantLabel;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      key: Key('permission-card-${item.identifier}'),
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(item.label, style: Theme.of(context).textTheme.titleMedium),
-            Text(item.identifier),
-            const SizedBox(height: 8),
-            Text(
-              'supported=$supported',
-              key: Key('supported-${item.identifier}'),
-            ),
-            Text(
-              'check=${grantLabel(lastCheck)}',
-              key: Key('check-result-${item.identifier}'),
-            ),
-            Text(
-              'request=${grantLabel(lastRequest)}',
-              key: Key('request-result-${item.identifier}'),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
+      body: Column(
+        children: [
+          // Action buttons
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                FilledButton(
-                  key: Key('check-${item.identifier}'),
-                  onPressed: busy ? null : onCheck,
-                  child: const Text('Check'),
+                // Single permissions
+                Text(
+                  'Single permissions',
+                  style: Theme.of(context).textTheme.titleSmall,
                 ),
-                OutlinedButton(
-                  key: Key('request-${item.identifier}'),
-                  onPressed: busy ? null : onRequest,
-                  child: const Text('Request'),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final (label, permission) in _singlePermissions) ...[
+                      FilledButton.tonal(
+                        key: Key('check-${permission.identifier}'),
+                        onPressed: () => _checkSingle(permission, label),
+                        child: Text('Check $label'),
+                      ),
+                      OutlinedButton(
+                        key: Key('request-${permission.identifier}'),
+                        onPressed: () => _requestSingle(permission, label),
+                        child: Text('Request $label'),
+                      ),
+                    ],
+                  ],
+                ),
+
+                const Divider(height: 24),
+
+                // Batch & Intentions
+                Text(
+                  'Batch & Intentions',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    FilledButton(
+                      key: const Key('batch-request'),
+                      onPressed: _batchRequest,
+                      child: const Text('Batch Request'),
+                    ),
+                    FilledButton(
+                      key: const Key('intention-contacts'),
+                      onPressed: () => _requestIntention(Intention.contacts),
+                      child: const Text('Intention: Contacts'),
+                    ),
+                    FilledButton(
+                      key: const Key('intention-camera'),
+                      onPressed: () => _requestIntention(Intention.camera),
+                      child: const Text('Intention: Camera'),
+                    ),
+                    OutlinedButton(
+                      key: const Key('versioned-images'),
+                      onPressed: _requestVersioned,
+                      child: const Text('Versioned Images'),
+                    ),
+                  ],
+                ),
+
+                const Divider(height: 24),
+
+                // Utilities
+                Text(
+                  'Utilities',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      key: const Key('open-settings'),
+                      onPressed: _openSettings,
+                      icon: const Icon(Icons.settings),
+                      label: const Text('Open Settings'),
+                    ),
+                    OutlinedButton.icon(
+                      key: const Key('location-accuracy'),
+                      onPressed: _checkLocationAccuracy,
+                      icon: const Icon(Icons.gps_fixed),
+                      label: const Text('Location Accuracy'),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
+          ),
+
+          const Divider(height: 1),
+
+          // Log output
+          Expanded(
+            child: _log.isEmpty
+                ? const Center(
+                    child: Text(
+                      'Tap a button above to see results',
+                      key: Key('empty-log'),
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: _log.length,
+                    itemBuilder: (context, index) {
+                      return Text(
+                        _log[index],
+                        key: Key('log-$index'),
+                        style: const TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 13,
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
       ),
     );
   }

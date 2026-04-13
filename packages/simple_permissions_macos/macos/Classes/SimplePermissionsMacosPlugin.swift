@@ -47,8 +47,7 @@ public class SimplePermissionsMacosPlugin: NSObject, FlutterPlugin, PermissionsM
 
   func openAppSettings(completion: @escaping (Result<Bool, Error>) -> Void) {
     if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy") {
-      NSWorkspace.shared.open(url)
-      completion(.success(true))
+      completion(.success(NSWorkspace.shared.open(url)))
     } else {
       completion(.success(false))
     }

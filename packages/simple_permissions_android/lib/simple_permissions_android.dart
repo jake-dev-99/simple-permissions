@@ -1,7 +1,5 @@
 library;
 
-import 'dart:async';
-
 import 'package:simple_permissions_platform_interface/simple_permissions_platform_interface.dart';
 
 import 'src/android_permission_registry.dart';
@@ -79,39 +77,6 @@ class SimplePermissionsAndroid extends SimplePermissionsPlatform {
         _sdkVersionFuture = null;
       }
     });
-  }
-
-  void _maybeFetchSdkVersion() {
-    if (_sdkVersionOverride != null ||
-        _cachedSdkVersion != null ||
-        _sdkVersionFuture != null) {
-      return;
-    }
-    unawaited(_ensureSdkVersionLoaded());
-  }
-
-  bool _isSupportedWithUnknownSdk(PermissionHandler handler) {
-    // isSupported is synchronous, so if SDK is not loaded yet we use a
-    // conservative answer: only permissions without SDK constraints are
-    // considered supported until the async SDK lookup completes.
-    if (handler is RuntimePermissionHandler) {
-      return handler.minSdk == null && handler.maxSdk == null;
-    }
-    if (handler is SystemSettingHandler) return false;
-    return true;
-  }
-
-  bool _isHandlerSupportedSync(PermissionHandler handler) {
-    final override = _sdkVersionOverride;
-    if (override != null) {
-      return handler.isSupported(override);
-    }
-    final sdk = _cachedSdkVersion;
-    if (sdk != null) {
-      return handler.isSupported(() => sdk);
-    }
-    _maybeFetchSdkVersion();
-    return _isSupportedWithUnknownSdk(handler);
   }
 
   Future<bool> _hasForegroundLocationGrant() async {
@@ -242,6 +207,8 @@ class SimplePermissionsAndroid extends SimplePermissionsPlatform {
     if (runtimeByOriginal.isNotEmpty) {
       final runtimePermissions = runtimeByOriginal.values.toSet().toList();
       final preCheck = await _api.checkPermissions(runtimePermissions);
+      final preRequestRationale =
+          await _api.shouldShowRequestPermissionRationale(runtimePermissions);
       final permissionsToRequest = runtimePermissions
           .where((permission) => preCheck[permission] != true)
           .toSet();
@@ -287,10 +254,14 @@ class SimplePermissionsAndroid extends SimplePermissionsPlatform {
           resolvedGrants[entry.key] = PermissionGrant.granted;
           continue;
         }
-        final shouldShowRationale = rationaleResults[permission] ?? false;
-        resolvedGrants[entry.key] = shouldShowRationale
-            ? PermissionGrant.denied
-            : PermissionGrant.permanentlyDenied;
+        resolvedGrants[entry.key] = classifyRuntimeDenial(
+          wasGrantedBeforeRequest: preCheck[permission] == true,
+          isGrantedAfterRequest: requestResults[permission] == true,
+          showedRationaleBeforeRequest:
+              preRequestRationale[permission] ?? false,
+          shouldShowRationaleAfterRequest:
+              rationaleResults[permission] ?? false,
+        );
       }
     }
 
@@ -301,12 +272,12 @@ class SimplePermissionsAndroid extends SimplePermissionsPlatform {
   }
 
   @override
-  bool isSupported(Permission permission) {
-    final sdk = _sdkVersionOverride?.call() ?? _cachedSdkVersion;
+  Future<bool> isSupported(Permission permission) async {
+    final sdk = await _ensureSdkVersionLoaded();
     final resolved = _resolve(permission, sdk);
     final handler = _registry[resolved.runtimeType];
     if (handler == null) return false;
-    return _isHandlerSupportedSync(handler);
+    return handler.isSupported(() => sdk);
   }
 
   @override

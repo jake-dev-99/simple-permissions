@@ -26,7 +26,7 @@ class IosPermissionMapping {
 /// - Calendar: read_calendar, write_calendar, read_reminders, write_reminders
 /// - Bluetooth: bluetooth_connect, bluetooth_scan, bluetooth_advertise
 /// - Speech: speech_recognition
-/// - Health: read_health, write_health
+/// - Health: health_access
 /// - Sensors: body_sensors, activity_recognition
 /// - Tracking: app_tracking_transparency
 const Map<Type, IosPermissionMapping> _iosRegistry = {
@@ -67,8 +67,7 @@ const Map<Type, IosPermissionMapping> _iosRegistry = {
   SpeechRecognition: IosPermissionMapping('speech_recognition'),
 
   // Health (HealthKit)
-  ReadHealth: IosPermissionMapping('read_health'),
-  WriteHealth: IosPermissionMapping('write_health'),
+  HealthAccess: IosPermissionMapping('health_access'),
 
   // Sensors / Motion
   BodySensors: IosPermissionMapping('body_sensors'),
@@ -88,3 +87,6 @@ IosPermissionMapping? iosPermissionMapping(Type permissionType) =>
 /// Whether the given [Permission] type has a registered iOS handler.
 bool isIosPermissionRegistered(Type permissionType) =>
     _iosRegistry.containsKey(permissionType);
+
+String? iosPermissionIdentifier(Type permissionType) =>
+    _iosRegistry[permissionType]?.identifier;

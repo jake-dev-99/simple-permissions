@@ -32,10 +32,7 @@ part 'wifi.dart';
 /// class with its own sealed hierarchy. Platform implementations use
 /// [identifier] to look up the correct native handler.
 ///
-/// All concrete permission types are const-constructible singletons. Since
-/// every instance is canonical (`const ReadContacts()` always returns the
-/// same object), default identity-based `==` and `hashCode` are correct
-/// and also enable use as keys in `const` maps (e.g. [PermissionResult]).
+/// All concrete permission types are const-constructible value objects.
 sealed class Permission {
   const Permission();
 
@@ -46,6 +43,14 @@ sealed class Permission {
   /// `android.permission.READ_CONTACTS` on Android and
   /// `CNAuthorizationStatus` on iOS.
   String get identifier;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Permission && other.identifier == identifier;
+
+  @override
+  int get hashCode => identifier.hashCode;
 
   @override
   String toString() => '$runtimeType($identifier)';

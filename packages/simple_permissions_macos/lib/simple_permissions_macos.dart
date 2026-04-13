@@ -40,44 +40,32 @@ class SimplePermissionsMacos extends SimplePermissionsPlatform {
 
   @override
   Future<PermissionGrant> check(Permission permission) async {
-    final resolved = resolveVersionedForDarwin(
-      permission,
-      isMacosPermissionRegistered,
+    return performDarwinPermissionOperation(
+      permission: permission,
+      isRegistered: isMacosPermissionRegistered,
+      identifierForType: macosPermissionIdentifier,
+      operation: _api.checkPermission,
     );
-    final mapping = macosPermissionMapping(resolved.runtimeType);
-
-    if (mapping == null) {
-      return PermissionGrant.notApplicable;
-    }
-
-    final wire = await _api.checkPermission(mapping.identifier);
-    return permissionGrantFromDarwinWire(wire);
   }
 
   @override
   Future<PermissionGrant> request(Permission permission) async {
-    final resolved = resolveVersionedForDarwin(
-      permission,
-      isMacosPermissionRegistered,
+    return performDarwinPermissionOperation(
+      permission: permission,
+      isRegistered: isMacosPermissionRegistered,
+      identifierForType: macosPermissionIdentifier,
+      operation: _api.requestPermission,
     );
-    final mapping = macosPermissionMapping(resolved.runtimeType);
-
-    if (mapping == null) {
-      return PermissionGrant.notApplicable;
-    }
-
-    final wire = await _api.requestPermission(mapping.identifier);
-    return permissionGrantFromDarwinWire(wire);
   }
 
   @override
-  bool isSupported(Permission permission) {
-    final resolved = resolveVersionedForDarwin(
-      permission,
-      isMacosPermissionRegistered,
-    );
-    return isMacosPermissionRegistered(resolved.runtimeType);
-  }
+  Future<bool> isSupported(Permission permission) =>
+      checkDarwinPermissionSupport(
+        permission: permission,
+        isRegistered: isMacosPermissionRegistered,
+        identifierForType: macosPermissionIdentifier,
+        isSupported: _api.isSupported,
+      );
 
   @override
   Future<bool> openAppSettings() => _api.openAppSettings();
@@ -85,19 +73,6 @@ class SimplePermissionsMacos extends SimplePermissionsPlatform {
   @override
   Future<LocationAccuracyStatus> checkLocationAccuracy() async {
     final wire = await _api.checkLocationAccuracy();
-    switch (wire) {
-      case 'precise':
-        return LocationAccuracyStatus.precise;
-      case 'reduced':
-        return LocationAccuracyStatus.reduced;
-      case 'none':
-        return LocationAccuracyStatus.none;
-      case 'notAvailable':
-        return LocationAccuracyStatus.notAvailable;
-      case 'notApplicable':
-        return LocationAccuracyStatus.notApplicable;
-      default:
-        return LocationAccuracyStatus.notApplicable;
-    }
+    return locationAccuracyStatusFromDarwinWire(wire);
   }
 }

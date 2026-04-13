@@ -12,6 +12,7 @@
 - `packages/simple_permissions_android/` — Android Pigeon implementation.
 - `packages/simple_permissions_ios/` — iOS Pigeon + Swift implementation.
 - `packages/simple_permissions_macos/` — macOS Pigeon + Swift implementation.
+- `packages/simple_permissions_web/` — Web implementation via browser Permissions API.
 
 ## Development workflow
 

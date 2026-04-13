@@ -22,6 +22,9 @@ class MockPermissionsIosApi implements PermissionsIosApi {
   /// Value returned by [openAppSettings].
   bool openSettingsResult = true;
 
+  /// Whether an identifier is supported on the running host.
+  final Map<String, bool> supportResults = {};
+
   /// Wire value returned by [checkLocationAccuracy].
   String locationAccuracyResult = 'notApplicable';
 
@@ -35,6 +38,12 @@ class MockPermissionsIosApi implements PermissionsIosApi {
   Future<String> requestPermission(String identifier) async {
     log.add((method: 'requestPermission', identifier: identifier));
     return requestResult;
+  }
+
+  @override
+  Future<bool> isSupported(String identifier) async {
+    log.add((method: 'isSupported', identifier: identifier));
+    return supportResults[identifier] ?? true;
   }
 
   @override
@@ -179,10 +188,10 @@ void main() {
 
     test('routes health through API', () async {
       mockApi.checkResult = 'notAvailable';
-      final result = await plugin.check(const ReadHealth());
+      final result = await plugin.check(const HealthAccess());
 
       expect(result, PermissionGrant.notAvailable);
-      expect(mockApi.log.first.identifier, 'read_health');
+      expect(mockApi.log.first.identifier, 'health_access');
     });
 
     test('routes body sensors through API', () async {
@@ -270,25 +279,30 @@ void main() {
   // ===========================================================================
 
   group('isSupported()', () {
-    test('returns true for registered permissions', () {
-      expect(plugin.isSupported(const ReadContacts()), isTrue);
-      expect(plugin.isSupported(const CameraAccess()), isTrue);
-      expect(plugin.isSupported(const PostNotifications()), isTrue);
-      expect(plugin.isSupported(const FineLocation()), isTrue);
-      expect(plugin.isSupported(const ReadCalendar()), isTrue);
-      expect(plugin.isSupported(const ReadReminders()), isTrue);
-      expect(plugin.isSupported(const BluetoothConnect()), isTrue);
-      expect(plugin.isSupported(const SpeechRecognition()), isTrue);
-      expect(plugin.isSupported(const ReadHealth()), isTrue);
-      expect(plugin.isSupported(const BodySensors()), isTrue);
-      expect(plugin.isSupported(const AppTrackingTransparency()), isTrue);
+    test('returns true for registered permissions', () async {
+      expect(await plugin.isSupported(const ReadContacts()), isTrue);
+      expect(await plugin.isSupported(const CameraAccess()), isTrue);
+      expect(await plugin.isSupported(const PostNotifications()), isTrue);
+      expect(await plugin.isSupported(const FineLocation()), isTrue);
+      expect(await plugin.isSupported(const ReadCalendar()), isTrue);
+      expect(await plugin.isSupported(const ReadReminders()), isTrue);
+      expect(await plugin.isSupported(const BluetoothConnect()), isTrue);
+      expect(await plugin.isSupported(const SpeechRecognition()), isTrue);
+      expect(await plugin.isSupported(const HealthAccess()), isTrue);
+      expect(await plugin.isSupported(const BodySensors()), isTrue);
+      expect(await plugin.isSupported(const AppTrackingTransparency()), isTrue);
     });
 
-    test('returns false for Android-only permissions', () {
-      expect(plugin.isSupported(const SendSms()), isFalse);
-      expect(plugin.isSupported(const MakeCalls()), isFalse);
-      expect(plugin.isSupported(const ReadPhoneState()), isFalse);
-      expect(plugin.isSupported(const ReadExternalStorage()), isFalse);
+    test('returns false for Android-only permissions', () async {
+      expect(await plugin.isSupported(const SendSms()), isFalse);
+      expect(await plugin.isSupported(const MakeCalls()), isFalse);
+      expect(await plugin.isSupported(const ReadPhoneState()), isFalse);
+      expect(await plugin.isSupported(const ReadExternalStorage()), isFalse);
+    });
+
+    test('returns false when native runtime support says unavailable', () async {
+      mockApi.supportResults['app_tracking_transparency'] = false;
+      expect(await plugin.isSupported(const AppTrackingTransparency()), isFalse);
     });
   });
 
@@ -443,8 +457,7 @@ void main() {
       const BluetoothScan(),
       const BluetoothAdvertise(),
       const SpeechRecognition(),
-      const ReadHealth(),
-      const WriteHealth(),
+      const HealthAccess(),
       const BodySensors(),
       const ActivityRecognition(),
       const AppTrackingTransparency(),
@@ -464,12 +477,12 @@ void main() {
       });
     }
 
-    test('exactly 23 permissions are registered', () {
+    test('exactly 22 permissions are registered', () async {
       var count = 0;
       for (final perm in registeredPermissions) {
-        if (plugin.isSupported(perm)) count++;
+        if (await plugin.isSupported(perm)) count++;
       }
-      expect(count, 23);
+      expect(count, 22);
     });
 
     test('Dart and Swift registries stay aligned', () async {

@@ -22,6 +22,9 @@ class MockPermissionsMacosApi implements PermissionsMacosApi {
   /// Value returned by [openAppSettings].
   bool openSettingsResult = true;
 
+  /// Whether an identifier is supported on the running host.
+  final Map<String, bool> supportResults = {};
+
   /// Wire value returned by [checkLocationAccuracy].
   String locationAccuracyResult = 'notApplicable';
 
@@ -35,6 +38,12 @@ class MockPermissionsMacosApi implements PermissionsMacosApi {
   Future<String> requestPermission(String identifier) async {
     log.add((method: 'requestPermission', identifier: identifier));
     return requestResult;
+  }
+
+  @override
+  Future<bool> isSupported(String identifier) async {
+    log.add((method: 'isSupported', identifier: identifier));
+    return supportResults[identifier] ?? true;
   }
 
   @override
@@ -177,8 +186,7 @@ void main() {
         const WriteCallLog(),
         const ReadExternalStorage(),
         const BackgroundLocation(),
-        const ReadHealth(),
-        const WriteHealth(),
+        const HealthAccess(),
         const BodySensors(),
         const ActivityRecognition(),
         const AppTrackingTransparency(),
@@ -227,31 +235,36 @@ void main() {
   // ===========================================================================
 
   group('isSupported()', () {
-    test('returns true for registered permissions', () {
-      expect(plugin.isSupported(const ReadContacts()), isTrue);
-      expect(plugin.isSupported(const WriteContacts()), isTrue);
-      expect(plugin.isSupported(const CameraAccess()), isTrue);
-      expect(plugin.isSupported(const RecordAudio()), isTrue);
-      expect(plugin.isSupported(const ReadMediaImages()), isTrue);
-      expect(plugin.isSupported(const ReadMediaVideo()), isTrue);
-      expect(plugin.isSupported(const PostNotifications()), isTrue);
-      expect(plugin.isSupported(const CoarseLocation()), isTrue);
-      expect(plugin.isSupported(const FineLocation()), isTrue);
-      expect(plugin.isSupported(const ReadCalendar()), isTrue);
-      expect(plugin.isSupported(const WriteCalendar()), isTrue);
-      expect(plugin.isSupported(const ReadReminders()), isTrue);
-      expect(plugin.isSupported(const WriteReminders()), isTrue);
+    test('returns true for registered permissions', () async {
+      expect(await plugin.isSupported(const ReadContacts()), isTrue);
+      expect(await plugin.isSupported(const WriteContacts()), isTrue);
+      expect(await plugin.isSupported(const CameraAccess()), isTrue);
+      expect(await plugin.isSupported(const RecordAudio()), isTrue);
+      expect(await plugin.isSupported(const ReadMediaImages()), isTrue);
+      expect(await plugin.isSupported(const ReadMediaVideo()), isTrue);
+      expect(await plugin.isSupported(const PostNotifications()), isTrue);
+      expect(await plugin.isSupported(const CoarseLocation()), isTrue);
+      expect(await plugin.isSupported(const FineLocation()), isTrue);
+      expect(await plugin.isSupported(const ReadCalendar()), isTrue);
+      expect(await plugin.isSupported(const WriteCalendar()), isTrue);
+      expect(await plugin.isSupported(const ReadReminders()), isTrue);
+      expect(await plugin.isSupported(const WriteReminders()), isTrue);
     });
 
-    test('returns false for mobile-only permissions', () {
-      expect(plugin.isSupported(const SendSms()), isFalse);
-      expect(plugin.isSupported(const MakeCalls()), isFalse);
-      expect(plugin.isSupported(const ReadPhoneState()), isFalse);
-      expect(plugin.isSupported(const ReadExternalStorage()), isFalse);
-      expect(plugin.isSupported(const BackgroundLocation()), isFalse);
-      expect(plugin.isSupported(const ReadHealth()), isFalse);
-      expect(plugin.isSupported(const BodySensors()), isFalse);
-      expect(plugin.isSupported(const AppTrackingTransparency()), isFalse);
+    test('returns false for mobile-only permissions', () async {
+      expect(await plugin.isSupported(const SendSms()), isFalse);
+      expect(await plugin.isSupported(const MakeCalls()), isFalse);
+      expect(await plugin.isSupported(const ReadPhoneState()), isFalse);
+      expect(await plugin.isSupported(const ReadExternalStorage()), isFalse);
+      expect(await plugin.isSupported(const BackgroundLocation()), isFalse);
+      expect(await plugin.isSupported(const HealthAccess()), isFalse);
+      expect(await plugin.isSupported(const BodySensors()), isFalse);
+      expect(await plugin.isSupported(const AppTrackingTransparency()), isFalse);
+    });
+
+    test('returns false when native runtime support says unavailable', () async {
+      mockApi.supportResults['post_notifications'] = false;
+      expect(await plugin.isSupported(const PostNotifications()), isFalse);
     });
   });
 
@@ -409,10 +422,10 @@ void main() {
       });
     }
 
-    test('exactly 13 permissions are registered', () {
+    test('exactly 13 permissions are registered', () async {
       var count = 0;
       for (final perm in registeredPermissions) {
-        if (plugin.isSupported(perm)) count++;
+        if (await plugin.isSupported(perm)) count++;
       }
       expect(count, 13);
     });

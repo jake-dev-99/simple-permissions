@@ -16,6 +16,8 @@ dependencies:
   simple_permissions_android: ^1.1.0
   simple_permissions_ios: ^1.1.0
   simple_permissions_macos: ^1.1.0
+  simple_permissions_web:
+    path: packages/simple_permissions_web
 
 dev_dependencies:
   flutter_test:
@@ -31,3 +33,5 @@ flutter:
         default_package: simple_permissions_ios
       macos:
         default_package: simple_permissions_macos
+      web:
+        default_package: simple_permissions_web
