@@ -6,6 +6,7 @@ repository: https://github.com/simplezen/simple-permissions
 
 environment:
   sdk: ^3.6.0
+  flutter: '>=3.24.0'
 
 dependencies:
   flutter:
