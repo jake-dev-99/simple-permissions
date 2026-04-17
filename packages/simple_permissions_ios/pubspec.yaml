@@ -5,6 +5,11 @@ homepage: https://github.com/simplezen/simple-permissions
 repository: https://github.com/simplezen/simple-permissions
 issue_tracker: https://github.com/simplezen/simple-permissions/issues
 
+topics:
+  - permissions
+  - ios
+  - privacy
+
 environment:
   sdk: ^3.6.0
   flutter: '>=3.24.0'

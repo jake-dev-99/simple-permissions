@@ -3,6 +3,12 @@ description: "Web implementation for simple_permissions_native."
 version: 1.2.0
 homepage: https://github.com/simplezen/simple-permissions
 repository: https://github.com/simplezen/simple-permissions
+issue_tracker: https://github.com/simplezen/simple-permissions/issues
+
+topics:
+  - permissions
+  - web
+  - privacy
 
 environment:
   sdk: ^3.6.0
