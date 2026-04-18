@@ -349,8 +349,7 @@ void main() {
       expect(result, PermissionGrant.denied);
     });
 
-    test(
-        'request returns denied when rationale stays false across the request',
+    test('request returns denied when rationale stays false across the request',
         () async {
       const handler = RuntimePermissionHandler('android.permission.CAMERA');
       mockApi.checkResult = {'android.permission.CAMERA': false};
@@ -845,7 +844,8 @@ void main() {
     });
 
     test('isSupported returns false for iOS-only permission', () async {
-      expect(await plugin.isSupported(const AppTrackingTransparency()), isFalse);
+      expect(
+          await plugin.isSupported(const AppTrackingTransparency()), isFalse);
     });
 
     test('isSupported returns false for wrong SDK version', () async {
@@ -866,10 +866,11 @@ void main() {
         api: mockApi,
         sdkVersionOverride: () => 30,
       );
-      expect(
-          await plugin22.isSupported(const BatteryOptimizationExemption()), isFalse);
+      expect(await plugin22.isSupported(const BatteryOptimizationExemption()),
+          isFalse);
       expect(await plugin30.isSupported(const ScheduleExactAlarm()), isFalse);
-      expect(await plugin30.isSupported(const RequestInstallPackages()), isTrue);
+      expect(
+          await plugin30.isSupported(const RequestInstallPackages()), isTrue);
       expect(await plugin30.isSupported(const ManageExternalStorage()), isTrue);
     });
 
@@ -894,7 +895,8 @@ void main() {
 
       expect(await plugin30.isSupported(const UwbRanging()), isFalse);
       expect(await plugin31.isSupported(const UwbRanging()), isTrue);
-      expect(await plugin32.isSupported(const BodySensorsBackground()), isFalse);
+      expect(
+          await plugin32.isSupported(const BodySensorsBackground()), isFalse);
       expect(await plugin33.isSupported(const BodySensorsBackground()), isTrue);
     });
 
@@ -1201,8 +1203,7 @@ void main() {
   });
 
   group('SDK loading', () {
-    test('initialize eagerly loads SDK and caches support checks',
-        () async {
+    test('initialize eagerly loads SDK and caches support checks', () async {
       final mockApi = MockPermissionsApi()..sdkVersion = 32;
       final plugin = SimplePermissionsAndroid(api: mockApi);
 

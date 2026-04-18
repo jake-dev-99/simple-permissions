@@ -33,7 +33,10 @@ import 'src/permission_observer.dart';
 export 'package:simple_permissions_platform_interface/simple_permissions_platform_interface.dart';
 
 export 'src/permission_observer.dart'
-    show PermissionObserver, PermissionObserverLifecycle, WidgetsBindingLifecycle;
+    show
+        PermissionObserver,
+        PermissionObserverLifecycle,
+        WidgetsBindingLifecycle;
 
 /// Facade for the federated simple_permissions plugin.
 ///

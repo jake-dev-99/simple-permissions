@@ -259,10 +259,12 @@ void main() {
       expect(await plugin.isSupported(const BackgroundLocation()), isFalse);
       expect(await plugin.isSupported(const HealthAccess()), isFalse);
       expect(await plugin.isSupported(const BodySensors()), isFalse);
-      expect(await plugin.isSupported(const AppTrackingTransparency()), isFalse);
+      expect(
+          await plugin.isSupported(const AppTrackingTransparency()), isFalse);
     });
 
-    test('returns false when native runtime support says unavailable', () async {
+    test('returns false when native runtime support says unavailable',
+        () async {
       mockApi.supportResults['post_notifications'] = false;
       expect(await plugin.isSupported(const PostNotifications()), isFalse);
     });

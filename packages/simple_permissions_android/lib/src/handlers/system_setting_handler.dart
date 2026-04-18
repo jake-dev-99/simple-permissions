@@ -69,8 +69,7 @@ enum SystemSettingType {
 
   /// Returns the request function for this setting type.
   Future<bool> Function(PermissionsApi) get _requestFn => switch (this) {
-        batteryOptimization => (api) =>
-            api.requestIgnoreBatteryOptimizations(),
+        batteryOptimization => (api) => api.requestIgnoreBatteryOptimizations(),
         scheduleExactAlarm => (api) => api.requestScheduleExactAlarms(),
         requestInstallPackages => (api) => api.requestInstallPackages(),
         systemAlertWindow => (api) => api.requestDrawOverlays(),
