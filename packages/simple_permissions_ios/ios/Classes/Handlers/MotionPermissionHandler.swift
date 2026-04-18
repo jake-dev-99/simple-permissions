@@ -24,7 +24,7 @@ final class MotionPermissionHandler: PermissionHandler {
       completion(GrantWire.notAvailable.rawValue)
       return
     }
-    completion(mapStatus(CMMotionActivityManager.authorizationStatus()))
+    completion(Self.mapStatus(CMMotionActivityManager.authorizationStatus()))
   }
 
   func request(completion: @escaping (String) -> Void) {
@@ -39,16 +39,20 @@ final class MotionPermissionHandler: PermissionHandler {
       // Already answered. Re-prompting is a no-op on iOS anyway —
       // return the current mapping so the UI can route to Settings
       // for denied/restricted paths.
-      completion(mapStatus(current))
+      completion(Self.mapStatus(current))
     case .notDetermined:
       // Fire a throwaway query to trigger the prompt. The callback
       // fires after the user answers; re-read authorization status
-      // rather than trying to decode the query error.
+      // rather than trying to decode the query error. `mapStatus` is
+      // static so the escaping closure doesn't have to capture self
+      // (Swift requires an explicit `self.` for instance methods
+      // inside `@escaping` closures — static avoids the whole
+      // capture-semantics ceremony).
       let manager = CMMotionActivityManager()
       let now = Date()
       manager.queryActivityStarting(from: now, to: now, to: .main) { _, _ in
         ensureMainThread {
-          completion(mapStatus(CMMotionActivityManager.authorizationStatus()))
+          completion(Self.mapStatus(CMMotionActivityManager.authorizationStatus()))
           manager.stopActivityUpdates()
         }
       }
@@ -57,7 +61,7 @@ final class MotionPermissionHandler: PermissionHandler {
     }
   }
 
-  private func mapStatus(_ status: CMAuthorizationStatus) -> String {
+  private static func mapStatus(_ status: CMAuthorizationStatus) -> String {
     switch status {
     case .authorized: return GrantWire.granted.rawValue
     case .notDetermined: return GrantWire.denied.rawValue
