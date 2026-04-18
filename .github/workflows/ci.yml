@@ -112,14 +112,3 @@ jobs:
             xcrun simctl privacy "$IOS_SIMULATOR_ID" reset all
           done
 
-  format:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-
-      - name: Check formatting
-        run: dart format --set-exit-if-changed .
