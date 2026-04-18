@@ -38,26 +38,41 @@ import androidx.core.content.ContextCompat
  *
  * ### Gradle wiring for consumers
  *
- * Using these helpers from another plugin's Kotlin requires a
- * compile-time Gradle reference, and there's a catch: Flutter's
- * plugin system only creates the `:simple_permissions_android`
- * project path inside the **final app's** `settings.gradle`, not
- * inside sibling plugins' own builds. So:
+ * Two-line setup in any consuming plugin (cross-repo is fine):
  *
- * - Same-repo: `implementation(project(":simple_permissions_android"))`
- *   works.
- * - Cross-repo sibling plugin: the project path doesn't exist; use
- *   Gradle composite build (`includeBuild`), publish a Maven
- *   artifact, or skip `PermissionGuards` and use
- *   `ContextCompat.checkSelfPermission(...)` inline (still
- *   architecturally fine for read-only checks — the Rule 2
- *   "simple-permissions owns access state" invariant is
- *   maintained at the **Dart API** layer, where requests and
- *   observation flow through `SimplePermissionsNative`).
+ * 1. Consuming plugin's root `pubspec.yaml` declares the Dart dep:
+ *    ```yaml
+ *    dependencies:
+ *      simple_permissions_native: ^1.4.0
+ *    ```
+ * 2. Consuming plugin's `android/build.gradle[.kts]` adds the
+ *    project ref:
+ *    ```groovy
+ *    dependencies {
+ *      implementation(project(":simple_permissions_android"))
+ *    }
+ *    ```
  *
- * See the README section *"Native Kotlin helpers for sibling
- * plugins — Gradle wiring — the honest version"* for the full
- * tradeoff.
+ * Flutter's plugin-loader walks the pubspec graph at app-build
+ * time and synthesizes Gradle project entries for every
+ * federated plugin's Android module into the final app's build.
+ * The `:simple_permissions_android` project ends up alongside
+ * the consuming plugin in the same Gradle build, so the project
+ * ref resolves.
+ *
+ * #### Gotcha for local path-dep workflows
+ *
+ * If the consuming plugin's example app overrides
+ * `simple_permissions_native` at a path, override each federated
+ * platform package (`simple_permissions_android`,
+ * `simple_permissions_platform_interface`, …) explicitly too —
+ * the plugin-loader registers Gradle paths per platform package.
+ * A facade-only override leaves `:simple_permissions_android`
+ * resolving to pub.dev, and new Kotlin API surfaces as
+ * "unresolved reference".
+ *
+ * See the README "Native Kotlin helpers for sibling plugins"
+ * section for the full write-up.
  *
  * ### No requesting from here
  *
