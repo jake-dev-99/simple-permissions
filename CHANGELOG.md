@@ -6,8 +6,8 @@
   - `PermissionGuards.areAllPermissionsGranted(context, permissions): Boolean`
   - `PermissionGuards.isRoleHeld(context, roleId): Boolean`
   - Intentionally no request-side helpers — request flows surface UI and still belong behind the Dart API (`SimplePermissionsNative.instance.request(...)`).
-- Consumers wire the helper into their Android module with `implementation project(":simple_permissions_android")` in their plugin's `android/build.gradle`. A Flutter pub dep on `simple_permissions_native` alone doesn't expose it — Flutter's plugin system wires plugins into the final app classpath but not into each other's compile classpaths.
-- Unblocks Rule 2 enforcement (*"native code delegates permission checks to simple-permissions"*) across the plugin family; `simple-sms` and `simple-telephony` will switch their inline `checkSelfPermission` calls over in follow-up PRs.
+- **Gradle reality (updated after attempting cross-plugin integration):** `implementation project(":simple_permissions_android")` only resolves when the consuming plugin lives in the same Gradle build. For sibling Flutter plugins in separate repos (simple-sms, simple-telephony, simple-query), the project path doesn't exist because Flutter's plugin system creates it inside the *final app's* settings.gradle, not inside other plugins' builds. Options: same-repo project dep, Gradle composite build (`includeBuild`), Maven publication, or keep using Android primitives in those plugins — see README for the tradeoff.
+- Rule 2 (*"access state goes through simple-permissions"*) remains upheld at the **Dart API boundary** (request flows, observation, permission types). Native-side inline `ContextCompat.checkSelfPermission(...)` in sibling plugins is legitimate — it's a read-only OS query, not a permission request. `PermissionGuards` is the delegation path when same-repo or cross-repo Gradle is available.
 
 ## 1.3.0
 

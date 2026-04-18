@@ -254,17 +254,47 @@ if (!PermissionGuards.isRoleHeld(context, RoleManager.ROLE_SMS)) {
 }
 ```
 
-### Gradle wiring
+### Gradle wiring — the honest version
 
 A Flutter pub dep on `simple_permissions_native` is **not** enough — Flutter's
 plugin system wires plugins into the final app classpath but not into each
-other's compile classpaths. In the consuming plugin's `android/build.gradle`:
+other's compile classpaths. That alone is already a friction point, but it
+turns out the simpler fix doesn't work either: a cross-repo
+`implementation(project(":simple_permissions_android"))` fails to resolve
+because `:simple_permissions_android` isn't a project of the consuming
+plugin's build — Flutter only creates that project path inside the **final
+app's** `settings.gradle`, not inside sibling plugins' builds.
 
-```groovy
-dependencies {
-  implementation project(":simple_permissions_android")
-}
-```
+Practical paths when a sibling plugin's Kotlin code wants these helpers:
+
+1. **Same-repo plugins.** If the consuming plugin lives in the same repo as
+   `simple_permissions_android` (or at least the same Gradle build),
+   `implementation(project(":simple_permissions_android"))` works because
+   Gradle knows the project. This is the cheapest option.
+
+2. **Composite build (`includeBuild`).** The consuming plugin's
+   `settings.gradle` declares `includeBuild("/path/to/simple-permissions/
+   packages/simple_permissions_android/android")` with a dependency
+   substitution. Works for local path-dep workflows but drags the
+   configuration requirement down into every consuming plugin and into the
+   final app.
+
+3. **Maven publication.** `simple_permissions_android` publishes a real AAR
+   (GitHub Packages or a private Maven). Sibling plugins consume via
+   coordinates. Clean but needs CI plumbing.
+
+4. **Just use Android primitives.** `ContextCompat.checkSelfPermission(...)`
+   inside a sibling plugin's own Kotlin is a legitimate access-state check —
+   the plugin isn't *requesting* anything, just reading the OS-level grant
+   state. Rule 2 (*"access state goes through simple-permissions"*) is
+   upheld at the **Dart API boundary** (request flows, observation,
+   permission types) even when the underlying native check is primitive.
+
+Until one of (1)–(3) is set up, **path 4 is fine**. `PermissionGuards`
+remains valuable for the same-repo case + as a documentation signal, but
+sibling plugins in separate repos (simple-sms, simple-telephony,
+simple-query) will continue to use `ContextCompat.checkSelfPermission(...)`
+directly.
 
 ### No request-side helpers
 
