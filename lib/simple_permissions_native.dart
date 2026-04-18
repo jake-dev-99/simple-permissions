@@ -28,7 +28,12 @@ library;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:simple_permissions_platform_interface/simple_permissions_platform_interface.dart';
 
+import 'src/permission_observer.dart';
+
 export 'package:simple_permissions_platform_interface/simple_permissions_platform_interface.dart';
+
+export 'src/permission_observer.dart'
+    show PermissionObserver, PermissionObserverLifecycle, WidgetsBindingLifecycle;
 
 /// Facade for the federated simple_permissions plugin.
 ///
@@ -170,8 +175,15 @@ class SimplePermissionsNative {
   ///   setState(() => _canSend = result.isFullyGranted);
   /// });
   /// ```
-  PermissionObserver observe(List<Permission> permissions) {
-    return _ensureInitialized().observe(permissions);
+  PermissionObserver observe(
+    List<Permission> permissions, {
+    PermissionObserverLifecycle? lifecycle,
+  }) {
+    return createPermissionObserver(
+      platform: _ensureInitialized(),
+      permissions: permissions,
+      lifecycle: lifecycle,
+    );
   }
 
   SimplePermissionsPlatform _ensureInitialized() {

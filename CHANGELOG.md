@@ -1,8 +1,10 @@
 ## 1.3.0
 
-- Added `PermissionObserver` — reactive view over a set of `Permission`s (including `AppRole`s like `DefaultSmsApp` / `DefaultDialerApp`) that re-queries on app resume and whenever `refresh()` is called. Exposed via `SimplePermissionsNative.instance.observe([...])` and `SimplePermissionsPlatform.observe([...])`.
+- Added `PermissionObserver` — reactive view over a set of `Permission`s (including `AppRole`s like `DefaultSmsApp` / `DefaultDialerApp`) that re-queries on app resume and whenever `refresh()` is called. Exposed via `SimplePermissionsNative.instance.observe([...])`.
   - Consumers drive reactive UI (disable writes until role held, show "grant to continue" banners) from `PermissionObserver.stream` without writing their own lifecycle + poll loops.
-  - Refresh triggers: `AppLifecycleState.resumed`, explicit `refresh()`, and the initial fetch at construction.
+  - Refresh triggers: `AppLifecycleState.resumed`, explicit `refresh()`, and the initial fetch at construction. Concurrent refresh calls are coalesced onto the in-flight future to keep result ordering predictable and avoid redundant platform work.
+  - Platform failures are caught and routed onto the stream as errors rather than escaping as uncaught exceptions — important because the resume path fires refresh unawaited.
+  - Lifecycle wiring is pluggable via `PermissionObserverLifecycle`; the default `WidgetsBindingLifecycle` hooks `WidgetsBinding`. Keeping this in the native (Flutter-aware) package — not the platform interface — so the platform interface stays Flutter-free.
   - Intentionally Dart-only — no native change needed. Matches platform reality (Android has no permission-change broadcast; re-query on resume is the accepted pattern).
 
 ## 1.2.0
