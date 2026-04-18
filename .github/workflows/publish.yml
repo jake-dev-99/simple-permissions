@@ -27,11 +27,6 @@ on:
 
 jobs:
   publish:
-    # Job-level `if:` picks exactly one matrix entry whose
-    # prefix matches the incoming tag, so non-matching packages
-    # never even spin up a runner. Simpler + cheaper than
-    # fanning out to all entries and gating every step.
-    if: startsWith(github.ref, format('refs/tags/{0}-v', matrix.package.name))
     permissions:
       # `id-token: write` is required for pub.dev's OIDC
       # exchange. No long-lived pub.dev tokens anywhere.
@@ -55,16 +50,27 @@ jobs:
           - name: simple_permissions_web
             path: packages/simple_permissions_web
 
+    # Per-step `if:` rather than job-level: GitHub Actions
+    # evaluates job-level `if:` before matrix expansion, so
+    # `matrix.package.name` isn't resolved there and the
+    # workflow file fails to parse ("workflow file issue").
+    # Sourcery's suggestion to hoist was aspirational; the
+    # per-step gate still short-circuits cheaply — only
+    # `actions/checkout` runs for non-matching jobs.
     steps:
       - uses: actions/checkout@v4
+        if: startsWith(github.ref, format('refs/tags/{0}-v', matrix.package.name))
 
       - uses: dart-lang/setup-dart@v1
+        if: startsWith(github.ref, format('refs/tags/{0}-v', matrix.package.name))
 
       - name: Install dependencies
+        if: startsWith(github.ref, format('refs/tags/{0}-v', matrix.package.name))
         working-directory: ${{ matrix.package.path }}
         run: dart pub get
 
       - name: Verify pubspec version matches tag
+        if: startsWith(github.ref, format('refs/tags/{0}-v', matrix.package.name))
         working-directory: ${{ matrix.package.path }}
         run: |
           tag_ref="${GITHUB_REF#refs/tags/}"
@@ -76,6 +82,7 @@ jobs:
           fi
 
       - name: Publish
+        if: startsWith(github.ref, format('refs/tags/{0}-v', matrix.package.name))
         working-directory: ${{ matrix.package.path }}
         # --force skips the interactive "publish this?" prompt.
         # pub.dev's server still enforces ownership + OIDC.
