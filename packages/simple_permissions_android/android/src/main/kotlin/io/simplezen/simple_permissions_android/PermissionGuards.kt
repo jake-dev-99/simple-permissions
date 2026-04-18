@@ -38,21 +38,26 @@ import androidx.core.content.ContextCompat
  *
  * ### Gradle wiring for consumers
  *
- * Sibling plugins' Android modules that want to use these helpers
- * need a compile-time Gradle reference to this package. The minimum
- * wiring, in the consuming plugin's `android/build.gradle`:
+ * Using these helpers from another plugin's Kotlin requires a
+ * compile-time Gradle reference, and there's a catch: Flutter's
+ * plugin system only creates the `:simple_permissions_android`
+ * project path inside the **final app's** `settings.gradle`, not
+ * inside sibling plugins' own builds. So:
  *
- * ```groovy
- * dependencies {
- *   implementation project(":simple_permissions_android")
- * }
- * ```
+ * - Same-repo: `implementation(project(":simple_permissions_android"))`
+ *   works.
+ * - Cross-repo sibling plugin: the project path doesn't exist; use
+ *   Gradle composite build (`includeBuild`), publish a Maven
+ *   artifact, or skip `PermissionGuards` and use
+ *   `ContextCompat.checkSelfPermission(...)` inline (still
+ *   architecturally fine for read-only checks — the Rule 2
+ *   "simple-permissions owns access state" invariant is
+ *   maintained at the **Dart API** layer, where requests and
+ *   observation flow through `SimplePermissionsNative`).
  *
- * A Flutter pub dep on `simple_permissions_native` alone is not
- * enough — Flutter's plugin system wires plugins into the app's
- * classpath but doesn't add them to other plugins' compile
- * classpaths. The project-dep line above is what makes
- * `PermissionGuards` importable.
+ * See the README section *"Native Kotlin helpers for sibling
+ * plugins — Gradle wiring — the honest version"* for the full
+ * tradeoff.
  *
  * ### No requesting from here
  *
