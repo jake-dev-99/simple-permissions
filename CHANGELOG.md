@@ -1,3 +1,14 @@
+## 1.4.0
+
+### Added — native Kotlin helpers module
+- `PermissionGuards` object (in `packages/simple_permissions_android`) exposes a public Kotlin API that sibling plugins can call to **check** (read-only) whether a runtime permission is granted or whether the app holds a default-app role. Previously the only shared access-state API was Dart-side, forcing sibling plugins' Kotlin code to reach for `ContextCompat.checkSelfPermission(...)` / `RoleManager.isRoleHeld(...)` directly.
+  - `PermissionGuards.isPermissionGranted(context, permission): Boolean`
+  - `PermissionGuards.areAllPermissionsGranted(context, permissions): Boolean`
+  - `PermissionGuards.isRoleHeld(context, roleId): Boolean`
+  - Intentionally no request-side helpers — request flows surface UI and still belong behind the Dart API (`SimplePermissionsNative.instance.request(...)`).
+- Consumers wire the helper into their Android module with `implementation project(":simple_permissions_android")` in their plugin's `android/build.gradle`. A Flutter pub dep on `simple_permissions_native` alone doesn't expose it — Flutter's plugin system wires plugins into the final app classpath but not into each other's compile classpaths.
+- Unblocks Rule 2 enforcement (*"native code delegates permission checks to simple-permissions"*) across the plugin family; `simple-sms` and `simple-telephony` will switch their inline `checkSelfPermission` calls over in follow-up PRs.
+
 ## 1.3.0
 
 - Added `PermissionObserver` — reactive view over a set of `Permission`s (including `AppRole`s like `DefaultSmsApp` / `DefaultDialerApp`) that re-queries on app resume and whenever `refresh()` is called. Exposed via `SimplePermissionsNative.instance.observe([...])`.
