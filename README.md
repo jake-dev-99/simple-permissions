@@ -221,6 +221,59 @@ Declare permissions in `android/app/src/main/AndroidManifest.xml`. Only include 
 
 See the full list of Android permission strings in the [Android developer docs](https://developer.android.com/reference/android/Manifest.permission).
 
+## Native Kotlin helpers for sibling plugins
+
+Plugin authors whose Android code needs to **check** (read-only) whether a
+runtime permission is granted or whether the app holds a default-app role can
+import `PermissionGuards` from `simple_permissions_android` instead of
+reaching for `ContextCompat.checkSelfPermission(...)` / `RoleManager.isRoleHeld(...)`
+directly.
+
+```kotlin
+import io.simplezen.simple_permissions_android.PermissionGuards
+import android.app.role.RoleManager
+import android.Manifest
+
+// Single permission
+if (!PermissionGuards.isPermissionGranted(
+        context, Manifest.permission.READ_SMS)) {
+  return emptyList()  // silent-fail path: caller must request via Dart API
+}
+
+// Batch precondition
+if (!PermissionGuards.areAllPermissionsGranted(
+        context,
+        listOf(Manifest.permission.READ_SMS, Manifest.permission.SEND_SMS))) {
+  return
+}
+
+// Default-app role
+if (!PermissionGuards.isRoleHeld(context, RoleManager.ROLE_SMS)) {
+  // Read-only; to request the role, call
+  // SimplePermissionsNative.instance.request(DefaultSmsApp()) from Dart.
+}
+```
+
+### Gradle wiring
+
+A Flutter pub dep on `simple_permissions_native` is **not** enough — Flutter's
+plugin system wires plugins into the final app classpath but not into each
+other's compile classpaths. In the consuming plugin's `android/build.gradle`:
+
+```groovy
+dependencies {
+  implementation project(":simple_permissions_android")
+}
+```
+
+### No request-side helpers
+
+`PermissionGuards` deliberately does not expose a "request permission"
+equivalent. Request flows surface UI and route through activity bindings —
+they belong behind the Dart API (`SimplePermissionsNative.instance.request(...)`)
+so the prompt is scoped by the user's consent flow, not a random native call
+site.
+
 ## Architecture
 
 ```text
