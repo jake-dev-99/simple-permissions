@@ -80,13 +80,19 @@ class _PermissionsDemoState extends State<PermissionsDemo> {
     _addLog('  isFullyGranted = ${result.isFullyGranted}');
 
     if (result.hasDenial) {
-      _addLog('  denied = ${result.denied.map((p) => p.identifier).join(', ')}');
+      _addLog(
+        '  denied = ${result.denied.map((p) => p.identifier).join(', ')}',
+      );
     }
     if (result.requiresSettings) {
-      _addLog('  permanentlyDenied = ${result.permanentlyDenied.map((p) => p.identifier).join(', ')}');
+      _addLog(
+        '  permanentlyDenied = ${result.permanentlyDenied.map((p) => p.identifier).join(', ')}',
+      );
     }
     if (result.hasUnsupported) {
-      _addLog('  unsupported = ${result.unsupported.map((p) => p.identifier).join(', ')}');
+      _addLog(
+        '  unsupported = ${result.unsupported.map((p) => p.identifier).join(', ')}',
+      );
     }
   }
 
@@ -248,27 +254,28 @@ class _PermissionsDemoState extends State<PermissionsDemo> {
 
           // Log output
           Expanded(
-            child: _log.isEmpty
-                ? const Center(
-                    child: Text(
-                      'Tap a button above to see results',
-                      key: Key('empty-log'),
+            child:
+                _log.isEmpty
+                    ? const Center(
+                      child: Text(
+                        'Tap a button above to see results',
+                        key: Key('empty-log'),
+                      ),
+                    )
+                    : ListView.builder(
+                      padding: const EdgeInsets.all(12),
+                      itemCount: _log.length,
+                      itemBuilder: (context, index) {
+                        return Text(
+                          _log[index],
+                          key: Key('log-$index'),
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 13,
+                          ),
+                        );
+                      },
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: _log.length,
-                    itemBuilder: (context, index) {
-                      return Text(
-                        _log[index],
-                        key: Key('log-$index'),
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 13,
-                        ),
-                      );
-                    },
-                  ),
           ),
         ],
       ),

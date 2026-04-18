@@ -427,7 +427,8 @@ void main() {
 
       expect(result.permissions, hasLength(1));
       expect(
-        () => result.permissions[const WriteContacts()] = PermissionGrant.denied,
+        () =>
+            result.permissions[const WriteContacts()] = PermissionGrant.denied,
         throwsUnsupportedError,
       );
     });
