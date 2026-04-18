@@ -22,8 +22,9 @@ class BrowserPermissionsApi implements WebPermissionsApi {
   Future<bool> requestCamera() async {
     try {
       final constraints = _createMediaConstraints(video: true);
-      final stream =
-          await web.window.navigator.mediaDevices.getUserMedia(constraints).toDart;
+      final stream = await web.window.navigator.mediaDevices
+          .getUserMedia(constraints)
+          .toDart;
       // Stop tracks immediately — we only needed the prompt, not the stream.
       final tracks = stream.getTracks().toDart;
       for (final track in tracks) {
@@ -39,8 +40,9 @@ class BrowserPermissionsApi implements WebPermissionsApi {
   Future<bool> requestMicrophone() async {
     try {
       final constraints = _createMediaConstraints(audio: true);
-      final stream =
-          await web.window.navigator.mediaDevices.getUserMedia(constraints).toDart;
+      final stream = await web.window.navigator.mediaDevices
+          .getUserMedia(constraints)
+          .toDart;
       final tracks = stream.getTracks().toDart;
       for (final track in tracks) {
         track.stop();
