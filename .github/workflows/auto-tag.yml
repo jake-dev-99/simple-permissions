@@ -50,8 +50,14 @@ jobs:
     if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
     runs-on: ubuntu-latest
     permissions:
-      # Commits the pubspec bump + pushes the tag back to main.
+      # `contents: write` — commit pubspec bump + push tags.
+      # `actions:  write` — dispatch publish.yml via
+      #   `gh workflow run` after tags land. Required because
+      #   GitHub suppresses `push: tags` workflow triggers when
+      #   the pusher is the default GITHUB_TOKEN, so we wake
+      #   publish.yml through `workflow_dispatch` instead.
       contents: write
+      actions: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -172,6 +178,11 @@ jobs:
             git commit -m "chore(release): auto-bump pubspec versions [skip ci]"
           fi
 
+          # Track only newly-created tags so the dispatch step
+          # below doesn't try to re-publish an already-shipped
+          # version (pub.dev would reject it, and the noise in
+          # the Actions UI is misleading).
+          new_tags=()
           for tag in "${pending_tags[@]}"; do
             # If this exact tag already exists (re-run, race),
             # leave it alone — the original push already did the
@@ -182,9 +193,24 @@ jobs:
             fi
             git tag "$tag"
             echo "tagged $tag"
+            new_tags+=("$tag")
           done
 
-          if [ "$touched_any" = "true" ] || [ "${#pending_tags[@]}" -gt 0 ]; then
+          if [ "$touched_any" = "true" ] || [ "${#new_tags[@]}" -gt 0 ]; then
             # Push commit + tags atomically.
-            git push --atomic origin HEAD "${pending_tags[@]}"
+            git push --atomic origin HEAD "${new_tags[@]}"
           fi
+
+          # Expose newly-pushed tags to the dispatch step below.
+          printf 'new_tags=%s\n' "${new_tags[*]}" >> "$GITHUB_ENV"
+
+      - name: Dispatch publish workflow per new tag
+        if: ${{ env.new_tags != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          for tag in $new_tags; do
+            echo "Dispatching publish.yml for $tag"
+            gh workflow run publish.yml -f tag="$tag"
+          done
