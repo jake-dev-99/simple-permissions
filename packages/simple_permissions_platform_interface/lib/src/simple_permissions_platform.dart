@@ -1,7 +1,5 @@
-import 'package:flutter/widgets.dart' show WidgetsBinding;
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'permission_grant.dart';
-import 'permission_observer.dart';
 import 'permission_result.dart';
 import 'location_accuracy_status.dart';
 import 'permissions/permission.dart';
@@ -100,25 +98,6 @@ abstract class SimplePermissionsPlatform extends PlatformInterface {
   /// with precision semantics.
   Future<LocationAccuracyStatus> checkLocationAccuracy() async =>
       LocationAccuracyStatus.notApplicable;
-
-  /// Start observing the grant state of [permissions]. Returns a
-  /// [PermissionObserver] that refreshes on app resume and whenever
-  /// [PermissionObserver.refresh] is called.
-  ///
-  /// Consumers drive reactive UI (disable send buttons, light up
-  /// features once a role is held) from [PermissionObserver.stream].
-  /// Dispose when done — the observer attaches a [WidgetsBinding]
-  /// lifecycle listener that won't otherwise be released.
-  PermissionObserver observe(
-    List<Permission> permissions, {
-    WidgetsBinding? binding,
-  }) {
-    return createPermissionObserverForPlatform(
-      platform: this,
-      permissions: permissions,
-      binding: binding,
-    );
-  }
 }
 
 /// Default platform implementation for platforms without a native plugin.
