@@ -1,0 +1,190 @@
+name: Auto-tag on merge
+
+# Runs when a PR merges to `main`. Figures out which federated
+# packages changed, computes a next version per package, commits
+# the pubspec bump back to main, and pushes a tag — which
+# triggers publish.yml.
+#
+# ## Versioning rule
+#
+# Per package, on each merge:
+#
+#   pubspec_version  = what the pubspec.yaml currently says
+#   last_tag_version = max version across existing
+#                      `<package>-v<semver>` tags
+#   candidate        = last_tag_version with patch + 1
+#                      (or 0.0.1 if no tags exist yet)
+#   next_version     = max(pubspec_version, candidate)
+#
+# Behaviour that falls out:
+#   - Developer did nothing special -> patch bump from the
+#     last release.
+#   - Developer bumped pubspec (minor or major) on the merge PR
+#     -> next_version == pubspec_version (the auto-bumper sees
+#     pubspec > candidate and respects the manual intent).
+#   - First release of a package -> pubspec_version wins because
+#     there are no tags; whatever the pubspec says is what
+#     ships.
+#
+# ## Change detection
+#
+# A package "changed" if any file under its working dir changed
+# between the push's before and after SHAs. Matches the
+# working-dir column in docs/RELEASE.md's tag-pattern table.
+#
+# ## Why a workflow and not a bot
+#
+# Stays inside the `.github/workflows` review surface — any
+# branch protection or required-review rule catches a
+# misbehaving auto-tagger the same way it catches bad code.
+# Bots can be quieter / scarier.
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  autotag:
+    # Skip the commit this workflow itself creates (contains
+    # `[skip ci]` in the message) to prevent an infinite loop.
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
+    runs-on: ubuntu-latest
+    permissions:
+      # Commits the pubspec bump + pushes the tag back to main.
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so `git log` / `git tag --list` see
+          # everything we need.
+          fetch-depth: 0
+          # Use a token the `git push` step can actually use.
+          # The default GITHUB_TOKEN is fine if branch
+          # protection on `main` allows the GitHub App's pushes.
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Compute + apply version bumps
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA:  ${{ github.event.after }}
+        run: |
+          set -euo pipefail
+
+          # Mapping: package_name -> working_dir. Keep in sync
+          # with publish.yml's matrix.
+          declare -A pkgs=(
+            [simple_permissions_native]="."
+            [simple_permissions_platform_interface]="packages/simple_permissions_platform_interface"
+            [simple_permissions_android]="packages/simple_permissions_android"
+            [simple_permissions_ios]="packages/simple_permissions_ios"
+            [simple_permissions_macos]="packages/simple_permissions_macos"
+            [simple_permissions_web]="packages/simple_permissions_web"
+          )
+
+          touched_any=false
+          pending_tags=()
+
+          # First-push safety: github.event.before on the very
+          # first push to a fresh branch is all-zeros. Fall back
+          # to empty-tree comparison so every tracked file
+          # counts as changed.
+          if [ "$BEFORE_SHA" = "0000000000000000000000000000000000000000" ]; then
+            BEFORE_SHA="$(git hash-object -t tree /dev/null)"
+          fi
+
+          changed_files="$(git diff --name-only "$BEFORE_SHA" "$AFTER_SHA")"
+
+          next_patch() {
+            # Bump the patch of X.Y.Z -> X.Y.(Z+1). Strips any
+            # pre-release suffix (0.3.0-dev.1 -> 0.3.0) before
+            # incrementing, which matches "promote the latest
+            # stable tag" semantics.
+            local v="$1"
+            local base="${v%%-*}"
+            IFS='.' read -r major minor patch <<< "$base"
+            echo "${major}.${minor}.$((patch + 1))"
+          }
+
+          version_gt() {
+            # Returns 0 (true) iff $1 > $2 per semver-ish sort.
+            # Strips pre-release suffix; pure X.Y.Z compare.
+            local a="${1%%-*}" b="${2%%-*}"
+            [ "$(printf '%s\n%s\n' "$a" "$b" | sort -V | tail -1)" = "$a" ] \
+              && [ "$a" != "$b" ]
+          }
+
+          for pkg in "${!pkgs[@]}"; do
+            dir="${pkgs[$pkg]}"
+            rel_prefix="${dir%/}"
+            if [ "$rel_prefix" = "." ]; then
+              # Root package: "changed" iff a file under the root
+              # pubspec/lib/etc changed, but NOT if the change is
+              # only inside packages/ (which belongs to another
+              # sub-package).
+              if ! echo "$changed_files" | grep -Ev '^packages/' | grep -q .; then
+                continue
+              fi
+            else
+              if ! echo "$changed_files" | grep -q "^${rel_prefix}/"; then
+                continue
+              fi
+            fi
+
+            pubspec_path="${dir%/}/pubspec.yaml"
+            [ "$dir" = "." ] && pubspec_path="pubspec.yaml"
+
+            pubspec_v="$(grep '^version:' "$pubspec_path" \
+              | sed 's/version:[[:space:]]*//' | tr -d '\r')"
+
+            last_tag="$(git tag --list "${pkg}-v*" \
+              | sed "s/^${pkg}-v//" \
+              | sort -V | tail -1 || true)"
+
+            if [ -z "$last_tag" ]; then
+              candidate="$pubspec_v"
+            else
+              candidate="$(next_patch "$last_tag")"
+            fi
+
+            if version_gt "$pubspec_v" "$candidate"; then
+              next="$pubspec_v"
+            else
+              next="$candidate"
+            fi
+
+            echo "::notice::$pkg pubspec=$pubspec_v last_tag=${last_tag:-<none>} next=$next"
+
+            if [ "$pubspec_v" != "$next" ]; then
+              sed -i -E "s/^version:[[:space:]]*.*$/version: $next/" "$pubspec_path"
+              git add "$pubspec_path"
+              touched_any=true
+            fi
+
+            pending_tags+=("${pkg}-v${next}")
+          done
+
+          if [ "$touched_any" = "true" ]; then
+            git commit -m "chore(release): auto-bump pubspec versions [skip ci]"
+          fi
+
+          for tag in "${pending_tags[@]}"; do
+            # If this exact tag already exists (re-run, race),
+            # leave it alone — the original push already did the
+            # publish.
+            if git rev-parse "$tag" >/dev/null 2>&1; then
+              echo "::notice::tag $tag already exists — skipping"
+              continue
+            fi
+            git tag "$tag"
+            echo "tagged $tag"
+          done
+
+          if [ "$touched_any" = "true" ] || [ "${#pending_tags[@]}" -gt 0 ]; then
+            # Push commit + tags atomically.
+            git push --atomic origin HEAD "${pending_tags[@]}"
+          fi
