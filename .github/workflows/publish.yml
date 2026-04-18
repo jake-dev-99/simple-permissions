@@ -1,56 +1,44 @@
 name: Publish to pub.dev
 
 # Triggered by tag pushes on `main` that match a federated
-# package's tag prefix. Each package has its own tag pattern so
-# a tagged release publishes exactly one package at a time —
-# consistent with pub.dev's "automated publishing" contract,
-# which expects one workflow + one matching tag pattern per
-# package.
+# package's tag prefix. Each package has its own tag pattern
+# so a tagged release publishes exactly one package at a time
+# — consistent with pub.dev's automated-publishing contract
+# (one tag pattern per package registration).
 #
 # Tag examples:
 #   simple_permissions_native-v1.4.0
 #   simple_permissions_android-v1.3.0
-#   simple_permissions_platform_interface-v1.2.0
 #
-# To cut a release:
-#   1. Bump the package version in its own pubspec.yaml
-#      (and the CHANGELOG.md entry) on a PR.
-#   2. Merge develop -> staging -> main through the standard
-#      promotion flow.
-#   3. After the main merge, tag the release commit:
-#         git tag simple_permissions_native-v1.4.0
-#         git push origin simple_permissions_native-v1.4.0
-#      The matching matrix job below fires and publishes.
-#
-# Every package must be set up on pub.dev's "Automated
-# publishing" panel (admin tab) pointing at this repo with a
-# matching tag pattern. Without that, the publish step errors
-# out with "missing OIDC authorization".
+# See docs/RELEASE.md for the cut-a-release runbook and the
+# required one-time pub.dev "Automated publishing" setup per
+# package. Tag patterns use GitHub Actions glob syntax, not
+# regex — the publish step validates the version via a
+# `pubspec_version == tag_version` check below.
 on:
   push:
     tags:
-      - 'simple_permissions_native-v[0-9]+.[0-9]+.[0-9]+*'
-      - 'simple_permissions_platform_interface-v[0-9]+.[0-9]+.[0-9]+*'
-      - 'simple_permissions_android-v[0-9]+.[0-9]+.[0-9]+*'
-      - 'simple_permissions_ios-v[0-9]+.[0-9]+.[0-9]+*'
-      - 'simple_permissions_macos-v[0-9]+.[0-9]+.[0-9]+*'
-      - 'simple_permissions_web-v[0-9]+.[0-9]+.[0-9]+*'
+      - 'simple_permissions_native-v*'
+      - 'simple_permissions_platform_interface-v*'
+      - 'simple_permissions_android-v*'
+      - 'simple_permissions_ios-v*'
+      - 'simple_permissions_macos-v*'
+      - 'simple_permissions_web-v*'
 
 jobs:
   publish:
-    # `id-token: write` is required for the OIDC exchange that
-    # pub.dev's GitHub Actions publishing flow uses. No long-
-    # lived pub.dev tokens anywhere in this workflow — auth is
-    # keyless end-to-end.
+    # Job-level `if:` picks exactly one matrix entry whose
+    # prefix matches the incoming tag, so non-matching packages
+    # never even spin up a runner. Simpler + cheaper than
+    # fanning out to all entries and gating every step.
+    if: startsWith(github.ref, format('refs/tags/{0}-v', matrix.package.name))
     permissions:
+      # `id-token: write` is required for pub.dev's OIDC
+      # exchange. No long-lived pub.dev tokens anywhere.
       id-token: write
     runs-on: ubuntu-latest
 
     strategy:
-      # Fan out across every federated package, but each job
-      # self-gates via its `if:` on the incoming tag prefix.
-      # Only the one job whose prefix matches the pushed tag
-      # actually runs a publish; the others no-op.
       fail-fast: false
       matrix:
         package:
@@ -69,21 +57,16 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        if: startsWith(github.ref, format('refs/tags/{0}-v', matrix.package.name))
 
       - uses: dart-lang/setup-dart@v1
-        if: startsWith(github.ref, format('refs/tags/{0}-v', matrix.package.name))
 
       - name: Install dependencies
-        if: startsWith(github.ref, format('refs/tags/{0}-v', matrix.package.name))
         working-directory: ${{ matrix.package.path }}
         run: dart pub get
 
       - name: Verify pubspec version matches tag
-        if: startsWith(github.ref, format('refs/tags/{0}-v', matrix.package.name))
         working-directory: ${{ matrix.package.path }}
         run: |
-          # Extract the version portion from the tag (e.g. v1.4.0 -> 1.4.0)
           tag_ref="${GITHUB_REF#refs/tags/}"
           expected="${tag_ref#${{ matrix.package.name }}-v}"
           actual="$(grep '^version:' pubspec.yaml | sed 's/version:[[:space:]]*//')"
@@ -93,7 +76,6 @@ jobs:
           fi
 
       - name: Publish
-        if: startsWith(github.ref, format('refs/tags/{0}-v', matrix.package.name))
         working-directory: ${{ matrix.package.path }}
         # --force skips the interactive "publish this?" prompt.
         # pub.dev's server still enforces ownership + OIDC.

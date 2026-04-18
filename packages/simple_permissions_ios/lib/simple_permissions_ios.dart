@@ -59,7 +59,8 @@ class SimplePermissionsIos extends SimplePermissionsPlatform {
   }
 
   @override
-  Future<bool> isSupported(Permission permission) => checkDarwinPermissionSupport(
+  Future<bool> isSupported(Permission permission) =>
+      checkDarwinPermissionSupport(
         permission: permission,
         isRegistered: isIosPermissionRegistered,
         identifierForType: iosPermissionIdentifier,

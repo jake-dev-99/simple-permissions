@@ -300,9 +300,11 @@ void main() {
       expect(await plugin.isSupported(const ReadExternalStorage()), isFalse);
     });
 
-    test('returns false when native runtime support says unavailable', () async {
+    test('returns false when native runtime support says unavailable',
+        () async {
       mockApi.supportResults['app_tracking_transparency'] = false;
-      expect(await plugin.isSupported(const AppTrackingTransparency()), isFalse);
+      expect(
+          await plugin.isSupported(const AppTrackingTransparency()), isFalse);
     });
   });
 

@@ -1,1 +1,10 @@
 include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    # pigeon.dart is an ad-hoc codegen script (run via
+    # `dart run pigeon`) not compiled into the plugin. It
+    # imports pigeon as a dev-only dep; analyzing it in CI
+    # requires the `pigeon` package on the classpath, which
+    # we deliberately don't pull in at plugin-consumer time.
+    - pigeon.dart

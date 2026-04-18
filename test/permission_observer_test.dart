@@ -87,8 +87,7 @@ void main() {
       platform.grants[const ReadContacts()] = PermissionGrant.granted;
       final observer = buildObserver(const [ReadContacts()]);
       final first = await observer.stream.first;
-      expect(first.permissions[const ReadContacts()],
-          PermissionGrant.granted);
+      expect(first.permissions[const ReadContacts()], PermissionGrant.granted);
       await observer.dispose();
     });
 
@@ -101,15 +100,14 @@ void main() {
 
       platform.grants[const DefaultSmsApp()] = PermissionGrant.granted;
       final result = await observer.refresh();
-      expect(result.permissions[const DefaultSmsApp()],
-          PermissionGrant.granted);
+      expect(
+          result.permissions[const DefaultSmsApp()], PermissionGrant.granted);
       await observer.dispose();
     });
 
     test('grantFor falls back to denied before first refresh', () {
       final observer = buildObserver(const [ReadContacts()]);
-      expect(observer.grantFor(const ReadContacts()),
-          PermissionGrant.denied);
+      expect(observer.grantFor(const ReadContacts()), PermissionGrant.denied);
       observer.dispose();
     });
 
