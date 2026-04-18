@@ -148,6 +148,32 @@ class SimplePermissionsNative {
     return _ensureInitialized().checkLocationAccuracy();
   }
 
+  /// Start observing the grant state of [permissions] reactively.
+  ///
+  /// Returns a [PermissionObserver] whose [PermissionObserver.stream]
+  /// emits whenever the observer refreshes — on app resume (catches
+  /// grants made via system Settings or the default-app dialog) and
+  /// whenever [PermissionObserver.refresh] is called explicitly.
+  ///
+  /// Dispose the observer when the consumer is torn down; it attaches
+  /// a [WidgetsBindingObserver] that wouldn't otherwise be released.
+  ///
+  /// Typical use: gate read-only vs. full functionality in the UI on
+  /// the default-SMS-app / default-dialer role being held.
+  ///
+  /// ```dart
+  /// final observer = SimplePermissionsNative.instance.observe(const [
+  ///   DefaultSmsApp(),
+  ///   ReceiveSms(),
+  /// ]);
+  /// observer.stream.listen((result) {
+  ///   setState(() => _canSend = result.isFullyGranted);
+  /// });
+  /// ```
+  PermissionObserver observe(List<Permission> permissions) {
+    return _ensureInitialized().observe(permissions);
+  }
+
   SimplePermissionsPlatform _ensureInitialized() {
     if (!_initialized) {
       throw StateError(
