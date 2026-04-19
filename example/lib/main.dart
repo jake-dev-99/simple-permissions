@@ -70,13 +70,20 @@ class _PermissionsDemoState extends State<PermissionsDemo> {
   // ---------------------------------------------------------------------------
 
   Future<void> _batchRequest() async {
+    // Log the call kickoff BEFORE the await. On macOS/iOS simulator
+    // under CI the system prompt can't be dismissed, so the await
+    // blocks indefinitely and no result-dependent log line ever
+    // fires — which used to make the integration smoke test fail
+    // even though the bridge call itself was healthy. Emitting the
+    // header first lets tests verify the call reached the bridge
+    // without gating on grant outcome.
+    _addLog('requestAll(camera, mic, location):');
     final result = await _perms.requestAll(const [
       CameraAccess(),
       RecordAudio(),
       FineLocation(),
     ]);
 
-    _addLog('requestAll(camera, mic, location):');
     _addLog('  isFullyGranted = ${result.isFullyGranted}');
 
     if (result.hasDenial) {
