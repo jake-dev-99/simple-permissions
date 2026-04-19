@@ -3,6 +3,14 @@ name: CI
 # Runs on every PR against the three promotion-flow branches
 # (develop -> staging -> main). Deliberately not on `push` —
 # CD handles the merge side, CI only validates proposed change.
+#
+# Ubuntu-only by design. GitHub bills macOS runners at ~10x the
+# Linux rate, and a native smoke suite on every PR burns through
+# the free-tier minutes fast. The sibling plugin repos
+# (simple-sms, simple-telephony, simple-query) run this same
+# minimal matrix and catch the regressions that matter
+# (analyzer + unit tests). Apple-surface validation lives
+# downstream in consumer-app smoke tests and manual device runs.
 on:
   pull_request:
     branches: [develop, staging, main]
@@ -19,6 +27,7 @@ jobs:
           - packages/simple_permissions_android
           - packages/simple_permissions_ios
           - packages/simple_permissions_macos
+          - packages/simple_permissions_web
 
     steps:
       - uses: actions/checkout@v4
@@ -38,77 +47,3 @@ jobs:
       - name: Run package tests
         working-directory: ${{ matrix.package }}
         run: flutter test
-
-  apple-validation:
-    name: Apple Build Validation and Smoke Tests
-    runs-on: macos-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-
-      - name: Install root dependencies
-        run: flutter pub get
-
-      - name: Install example dependencies
-        working-directory: example
-        run: flutter pub get
-
-      - name: Analyze Apple packages and example
-        run: |
-          flutter analyze packages/simple_permissions_ios
-          flutter analyze packages/simple_permissions_macos
-          flutter analyze example
-
-      - name: Run iOS package tests
-        working-directory: packages/simple_permissions_ios
-        run: flutter test
-
-      - name: Run macOS package tests
-        working-directory: packages/simple_permissions_macos
-        run: flutter test
-
-      - name: Build macOS example
-        working-directory: example
-        run: flutter build macos
-
-      - name: Build iOS example (simulator)
-        working-directory: example
-        run: flutter build ios --simulator --no-codesign
-
-      - name: Boot iOS simulator
-        working-directory: example
-        run: |
-          DEVICE_ID=$(xcrun simctl list devices available | grep -m 1 "iPhone" | sed -E 's/.*\(([-A-F0-9]+)\).*/\1/')
-          if [ -z "$DEVICE_ID" ]; then
-            echo "No available iPhone simulator found"
-            exit 1
-          fi
-          echo "IOS_SIMULATOR_ID=$DEVICE_ID" >> "$GITHUB_ENV"
-          xcrun simctl boot "$DEVICE_ID" || true
-          xcrun simctl bootstatus "$DEVICE_ID" -b
-          xcrun simctl privacy "$DEVICE_ID" reset all
-
-      - name: Apple Smoke Tests (macOS)
-        working-directory: example
-        run: flutter test integration_test -d macos
-
-      - name: Apple Smoke Tests (iOS simulator)
-        working-directory: example
-        run: |
-          for attempt in 1 2; do
-            if flutter test integration_test -d "$IOS_SIMULATOR_ID"; then
-              exit 0
-            fi
-            if [ "$attempt" -eq 2 ]; then
-              exit 1
-            fi
-            xcrun simctl shutdown "$IOS_SIMULATOR_ID" || true
-            xcrun simctl boot "$IOS_SIMULATOR_ID"
-            xcrun simctl bootstatus "$IOS_SIMULATOR_ID" -b
-            xcrun simctl privacy "$IOS_SIMULATOR_ID" reset all
-          done
-
