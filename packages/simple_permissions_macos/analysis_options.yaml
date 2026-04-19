@@ -1,1 +1,6 @@
 include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    # See simple_permissions_ios's analysis_options.yaml — same rule.
+    - pigeon.dart

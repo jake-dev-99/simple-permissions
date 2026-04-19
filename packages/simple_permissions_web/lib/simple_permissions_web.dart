@@ -12,7 +12,6 @@ import 'src/api_factory_stub.dart'
 import 'src/web_permission_registry.dart';
 import 'src/web_permissions_api_base.dart';
 
-
 /// Web implementation of [SimplePermissionsPlatform].
 ///
 /// Uses the browser Permissions API (`navigator.permissions.query`) to check

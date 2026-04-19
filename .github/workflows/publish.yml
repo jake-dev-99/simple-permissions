@@ -1,0 +1,146 @@
+name: Publish to pub.dev
+
+# Triggered by tag pushes on `main` that match a federated
+# package's tag prefix. Each package has its own tag pattern
+# so a tagged release publishes exactly one package at a time
+# — consistent with pub.dev's automated-publishing contract
+# (one tag pattern per package registration).
+#
+# Tag examples:
+#   simple_permissions_native-v1.4.0
+#   simple_permissions_android-v1.3.0
+#
+# See docs/RELEASE.md for the cut-a-release runbook and the
+# required one-time pub.dev "Automated publishing" setup per
+# package. Tag patterns use GitHub Actions glob syntax, not
+# regex — the publish step validates the version via a
+# `pubspec_version == tag_version` check below.
+#
+# Two triggers, both needed:
+#
+#   push: tags — still wired so a manually-pushed tag (human-
+#     cut release) publishes without extra steps.
+#
+#   workflow_dispatch — auto-tag runs on main merges, creates
+#     tags, and pushes them with the default GITHUB_TOKEN.
+#     GitHub suppresses `push: tags` workflow triggers when the
+#     pusher is the runner's own token (anti-infinite-loop),
+#     so without this entrypoint every auto-tag landed without
+#     a publish run. auto-tag now calls
+#     `gh workflow run publish.yml -f tag=<tag>` per new tag;
+#     workflow_dispatch is the one event that *does* fire from
+#     GITHUB_TOKEN.
+on:
+  push:
+    tags:
+      - 'simple_permissions_native-v*'
+      - 'simple_permissions_platform_interface-v*'
+      - 'simple_permissions_android-v*'
+      - 'simple_permissions_ios-v*'
+      - 'simple_permissions_macos-v*'
+      - 'simple_permissions_web-v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Package tag to publish (e.g. simple_permissions_native-v1.4.0)'
+        required: true
+        type: string
+
+jobs:
+  publish:
+    permissions:
+      # `id-token: write` is required for pub.dev's OIDC
+      # exchange. No long-lived pub.dev tokens anywhere.
+      id-token: write
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - name: simple_permissions_native
+            path: "."
+          - name: simple_permissions_platform_interface
+            path: packages/simple_permissions_platform_interface
+          - name: simple_permissions_android
+            path: packages/simple_permissions_android
+          - name: simple_permissions_ios
+            path: packages/simple_permissions_ios
+          - name: simple_permissions_macos
+            path: packages/simple_permissions_macos
+          - name: simple_permissions_web
+            path: packages/simple_permissions_web
+
+    # Per-step `if:` rather than job-level: GitHub Actions
+    # evaluates job-level `if:` before matrix expansion, so
+    # `matrix.package.name` isn't resolved there and the
+    # workflow file fails to parse ("workflow file issue").
+    # Sourcery's suggestion to hoist was aspirational; the
+    # per-step gate still short-circuits cheaply — only the
+    # tag-resolve step runs for non-matching jobs.
+    steps:
+      # Normalise tag source across `push` (GITHUB_REF) and
+      # `workflow_dispatch` (input). Subsequent steps gate on
+      # the resolved tag so both trigger paths work with one
+      # set of conditions.
+      - name: Resolve tag
+        id: resolve
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            tag="${{ inputs.tag }}"
+            ref="refs/tags/$tag"
+          else
+            tag="${GITHUB_REF#refs/tags/}"
+            ref="$GITHUB_REF"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        if: startsWith(steps.resolve.outputs.tag, format('{0}-v', matrix.package.name))
+        with:
+          ref: ${{ steps.resolve.outputs.ref }}
+
+      # Flutter plugin packages (pubspec pins `sdk: flutter`), so
+      # `dart pub` can't resolve — pub reports:
+      #   "Because <pkg> requires the Flutter SDK, version solving
+      #    failed. Flutter users should use `flutter pub` instead
+      #    of `dart pub`."
+      # Use the Flutter toolchain and call `flutter pub ...`
+      # throughout. pub.dev's OIDC publish works identically.
+      - uses: subosito/flutter-action@v2
+        if: startsWith(steps.resolve.outputs.tag, format('{0}-v', matrix.package.name))
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        if: startsWith(steps.resolve.outputs.tag, format('{0}-v', matrix.package.name))
+        working-directory: ${{ matrix.package.path }}
+        run: flutter pub get
+
+      - name: Verify pubspec version matches tag
+        if: startsWith(steps.resolve.outputs.tag, format('{0}-v', matrix.package.name))
+        working-directory: ${{ matrix.package.path }}
+        run: |
+          tag="${{ steps.resolve.outputs.tag }}"
+          expected="${tag#${{ matrix.package.name }}-v}"
+          actual="$(grep '^version:' pubspec.yaml | sed 's/version:[[:space:]]*//')"
+          if [ "$expected" != "$actual" ]; then
+            echo "::error::Tag ${tag} does not match pubspec version ${actual} (expected ${expected})"
+            exit 1
+          fi
+
+      - name: Publish
+        # 2-minute cap. A healthy OIDC-backed publish finishes in
+        # 10-30 s; anything much longer means pub fell back to the
+        # interactive OAuth flow (which happens if the OIDC token's
+        # `ref` claim doesn't match pub.dev's configured tag
+        # pattern). Better to fail fast than sit on the runner for
+        # 40+ minutes waiting for someone to click a browser link
+        # that will never arrive.
+        timeout-minutes: 2
+        if: startsWith(steps.resolve.outputs.tag, format('{0}-v', matrix.package.name))
+        working-directory: ${{ matrix.package.path }}
+        # --force skips the interactive "publish this?" prompt.
+        # pub.dev's server still enforces ownership + OIDC.
+        run: flutter pub publish --force

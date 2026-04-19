@@ -1,0 +1,49 @@
+name: CI
+
+# Runs on every PR against the three promotion-flow branches
+# (develop -> staging -> main). Deliberately not on `push` —
+# CD handles the merge side, CI only validates proposed change.
+#
+# Ubuntu-only by design. GitHub bills macOS runners at ~10x the
+# Linux rate, and a native smoke suite on every PR burns through
+# the free-tier minutes fast. The sibling plugin repos
+# (simple-sms, simple-telephony, simple-query) run this same
+# minimal matrix and catch the regressions that matter
+# (analyzer + unit tests). Apple-surface validation lives
+# downstream in consumer-app smoke tests and manual device runs.
+on:
+  pull_request:
+    branches: [develop, staging, main]
+
+jobs:
+  package-tests:
+    name: Package Unit Tests (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package:
+          - "."
+          - packages/simple_permissions_platform_interface
+          - packages/simple_permissions_android
+          - packages/simple_permissions_ios
+          - packages/simple_permissions_macos
+          - packages/simple_permissions_web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.package }}
+        run: flutter pub get
+
+      - name: Analyze package
+        working-directory: ${{ matrix.package }}
+        run: flutter analyze
+
+      - name: Run package tests
+        working-directory: ${{ matrix.package }}
+        run: flutter test

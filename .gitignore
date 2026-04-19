@@ -9,7 +9,12 @@
 .history
 .svn/
 migrate_working_dir/
-.github/
+# Don't track ad-hoc content under .github/ (local scratch, Copilot
+# notes) but keep `workflows/` + `ISSUE_TEMPLATE/` since those drive
+# CI/CD + the issue flow.
+.github/*
+!.github/workflows/
+!.github/ISSUE_TEMPLATE/
 *.bin
 *.lock
 

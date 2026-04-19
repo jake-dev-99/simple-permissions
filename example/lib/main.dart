@@ -70,23 +70,36 @@ class _PermissionsDemoState extends State<PermissionsDemo> {
   // ---------------------------------------------------------------------------
 
   Future<void> _batchRequest() async {
+    // Log the call kickoff BEFORE the await. On macOS/iOS simulator
+    // under CI the system prompt can't be dismissed, so the await
+    // blocks indefinitely and no result-dependent log line ever
+    // fires — which used to make the integration smoke test fail
+    // even though the bridge call itself was healthy. Emitting the
+    // header first lets tests verify the call reached the bridge
+    // without gating on grant outcome.
+    _addLog('requestAll(camera, mic, location):');
     final result = await _perms.requestAll(const [
       CameraAccess(),
       RecordAudio(),
       FineLocation(),
     ]);
 
-    _addLog('requestAll(camera, mic, location):');
     _addLog('  isFullyGranted = ${result.isFullyGranted}');
 
     if (result.hasDenial) {
-      _addLog('  denied = ${result.denied.map((p) => p.identifier).join(', ')}');
+      _addLog(
+        '  denied = ${result.denied.map((p) => p.identifier).join(', ')}',
+      );
     }
     if (result.requiresSettings) {
-      _addLog('  permanentlyDenied = ${result.permanentlyDenied.map((p) => p.identifier).join(', ')}');
+      _addLog(
+        '  permanentlyDenied = ${result.permanentlyDenied.map((p) => p.identifier).join(', ')}',
+      );
     }
     if (result.hasUnsupported) {
-      _addLog('  unsupported = ${result.unsupported.map((p) => p.identifier).join(', ')}');
+      _addLog(
+        '  unsupported = ${result.unsupported.map((p) => p.identifier).join(', ')}',
+      );
     }
   }
 
@@ -248,27 +261,28 @@ class _PermissionsDemoState extends State<PermissionsDemo> {
 
           // Log output
           Expanded(
-            child: _log.isEmpty
-                ? const Center(
-                    child: Text(
-                      'Tap a button above to see results',
-                      key: Key('empty-log'),
+            child:
+                _log.isEmpty
+                    ? const Center(
+                      child: Text(
+                        'Tap a button above to see results',
+                        key: Key('empty-log'),
+                      ),
+                    )
+                    : ListView.builder(
+                      padding: const EdgeInsets.all(12),
+                      itemCount: _log.length,
+                      itemBuilder: (context, index) {
+                        return Text(
+                          _log[index],
+                          key: Key('log-$index'),
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 13,
+                          ),
+                        );
+                      },
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: _log.length,
-                    itemBuilder: (context, index) {
-                      return Text(
-                        _log[index],
-                        key: Key('log-$index'),
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 13,
-                        ),
-                      );
-                    },
-                  ),
           ),
         ],
       ),

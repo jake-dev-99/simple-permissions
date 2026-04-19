@@ -1,1 +1,7 @@
 include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    # pigeon.dart is an ad-hoc codegen script. See
+    # simple_permissions_ios/analysis_options.yaml for the full rule.
+    - pigeon.dart
