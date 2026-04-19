@@ -101,13 +101,22 @@ jobs:
         with:
           ref: ${{ steps.resolve.outputs.ref }}
 
-      - uses: dart-lang/setup-dart@v1
+      # Flutter plugin packages (pubspec pins `sdk: flutter`), so
+      # `dart pub` can't resolve — pub reports:
+      #   "Because <pkg> requires the Flutter SDK, version solving
+      #    failed. Flutter users should use `flutter pub` instead
+      #    of `dart pub`."
+      # Use the Flutter toolchain and call `flutter pub ...`
+      # throughout. pub.dev's OIDC publish works identically.
+      - uses: subosito/flutter-action@v2
         if: startsWith(steps.resolve.outputs.tag, format('{0}-v', matrix.package.name))
+        with:
+          channel: stable
 
       - name: Install dependencies
         if: startsWith(steps.resolve.outputs.tag, format('{0}-v', matrix.package.name))
         working-directory: ${{ matrix.package.path }}
-        run: dart pub get
+        run: flutter pub get
 
       - name: Verify pubspec version matches tag
         if: startsWith(steps.resolve.outputs.tag, format('{0}-v', matrix.package.name))
@@ -122,8 +131,16 @@ jobs:
           fi
 
       - name: Publish
+        # 2-minute cap. A healthy OIDC-backed publish finishes in
+        # 10-30 s; anything much longer means pub fell back to the
+        # interactive OAuth flow (which happens if the OIDC token's
+        # `ref` claim doesn't match pub.dev's configured tag
+        # pattern). Better to fail fast than sit on the runner for
+        # 40+ minutes waiting for someone to click a browser link
+        # that will never arrive.
+        timeout-minutes: 2
         if: startsWith(steps.resolve.outputs.tag, format('{0}-v', matrix.package.name))
         working-directory: ${{ matrix.package.path }}
         # --force skips the interactive "publish this?" prompt.
         # pub.dev's server still enforces ownership + OIDC.
-        run: dart pub publish --force
+        run: flutter pub publish --force
