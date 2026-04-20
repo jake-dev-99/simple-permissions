@@ -27,6 +27,15 @@ import 'src/web_permissions_api_base.dart';
 /// - [PostNotifications] → `notifications`
 ///
 /// All other permission types return [PermissionGrant.notApplicable].
+///
+/// ## Observing grant changes
+///
+/// `SimplePermissionsNative.instance.observe(...)` works on web but only
+/// refreshes on lifecycle events (tab focus) and explicit `refresh()`
+/// calls. It does not wire up `PermissionStatus.onchange`, so a user
+/// toggling a permission in another tab won't push an event until the
+/// current tab regains focus. Call `observer.refresh()` if you need
+/// sooner-than-focus accuracy.
 class SimplePermissionsWeb extends SimplePermissionsPlatform {
   SimplePermissionsWeb({WebPermissionsApi? api})
       : _api = api ?? createBrowserApi();
