@@ -184,5 +184,63 @@ void main() {
       expect(platform.checkAllCalls, after,
           reason: 'refresh after dispose does not re-query');
     });
+
+    test('dispose while a refresh is in flight does not leak an emit',
+        () async {
+      // Gate the initial refresh fired by createPermissionObserver.
+      final gate = Completer<PermissionResult>();
+      platform.checkAllGates.add(gate);
+
+      final observer = buildObserver(const [ReadContacts()]);
+      final events = <PermissionResult>[];
+      final errors = <Object>[];
+      observer.stream.listen(events.add, onError: errors.add);
+
+      // Dispose BEFORE the in-flight refresh resolves.
+      final disposeFuture = observer.dispose();
+
+      // Now let the refresh complete.
+      gate.complete(PermissionResult({
+        const ReadContacts(): PermissionGrant.granted,
+      }));
+
+      await disposeFuture;
+      await Future<void>.delayed(Duration.zero);
+
+      expect(events, isEmpty,
+          reason: 'no events should fire after dispose even if an '
+              'in-flight refresh resolves late');
+      expect(errors, isEmpty);
+      expect(observer.latest, isNull,
+          reason: 'latest is not mutated by a post-dispose refresh');
+    });
+
+    test('lifecycle resume fired after dispose is a no-op', () async {
+      final observer = buildObserver(const [ReadContacts()]);
+      await observer.refresh();
+      await observer.dispose();
+      final before = platform.checkAllCalls;
+
+      lifecycle.triggerResume();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(platform.checkAllCalls, before,
+          reason: 'the observer must ignore lifecycle events after dispose');
+    });
+
+    test('refresh errors that resolve after dispose do not escape', () async {
+      platform.errorToThrow = StateError('late explode');
+      final observer = buildObserver(const [ReadContacts()]);
+      final errors = <Object>[];
+      observer.stream.listen((_) {}, onError: errors.add);
+
+      // Dispose immediately — the initial refresh is still in flight.
+      await observer.dispose();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(errors, isEmpty,
+          reason: 'errors from refreshes that complete post-dispose must '
+              "not land on a closed controller");
+    });
   });
 }
