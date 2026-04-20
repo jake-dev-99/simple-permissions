@@ -3,7 +3,9 @@ package io.simplezen.simple_permissions_android
 import android.app.role.RoleManager
 import android.content.Context
 import android.content.pm.PackageManager
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentMatchers.anyInt
@@ -132,5 +134,124 @@ internal class PermissionGuardsTest {
     val h = Harness()
     `when`(h.roleManager.isRoleAvailable("unknown.role")).thenReturn(false)
     assertFalse(PermissionGuards.isRoleHeld(h.context, "unknown.role"))
+  }
+
+  // ── requirePermissionGranted ──────────────────────────────────────────
+
+  @Test
+  fun requirePermissionGranted_noThrowWhenGranted() {
+    val h = Harness()
+    h.grant("android.permission.CALL_PHONE")
+    PermissionGuards.requirePermissionGranted(
+      h.context, "android.permission.CALL_PHONE"
+    )
+  }
+
+  @Test
+  fun requirePermissionGranted_throwsWithDeniedListWhenMissing() {
+    val h = Harness()
+    val ex = assertThrows(PermissionDeniedException::class.java) {
+      PermissionGuards.requirePermissionGranted(
+        h.context, "android.permission.CALL_PHONE"
+      )
+    }
+    assertEquals(listOf("android.permission.CALL_PHONE"), ex.deniedPermissions)
+    assertTrue(ex is SecurityException)
+  }
+
+  // ── requireAnyPermissionGranted ───────────────────────────────────────
+
+  @Test
+  fun requireAnyPermissionGranted_noThrowWhenAnyGranted() {
+    val h = Harness()
+    h.grant("android.permission.MANAGE_OWN_CALLS")
+    PermissionGuards.requireAnyPermissionGranted(
+      h.context,
+      listOf(
+        "android.permission.CALL_PHONE",
+        "android.permission.MANAGE_OWN_CALLS",
+      )
+    )
+  }
+
+  @Test
+  fun requireAnyPermissionGranted_throwsWhenAllDenied() {
+    val h = Harness()
+    val required = listOf(
+      "android.permission.CALL_PHONE",
+      "android.permission.MANAGE_OWN_CALLS",
+    )
+    val ex = assertThrows(PermissionDeniedException::class.java) {
+      PermissionGuards.requireAnyPermissionGranted(h.context, required)
+    }
+    assertEquals(required, ex.deniedPermissions)
+  }
+
+  @Test
+  fun requireAnyPermissionGranted_emptyCollectionThrows() {
+    // Empty required set is almost certainly a programmer error —
+    // fail loud rather than silently passing.
+    val h = Harness()
+    assertThrows(PermissionDeniedException::class.java) {
+      PermissionGuards.requireAnyPermissionGranted(h.context, emptyList())
+    }
+  }
+
+  // ── requireAllPermissionsGranted ──────────────────────────────────────
+
+  @Test
+  fun requireAllPermissionsGranted_noThrowWhenAllGranted() {
+    val h = Harness()
+    h.grant("android.permission.READ_SMS")
+    h.grant("android.permission.SEND_SMS")
+    PermissionGuards.requireAllPermissionsGranted(
+      h.context,
+      listOf("android.permission.READ_SMS", "android.permission.SEND_SMS")
+    )
+  }
+
+  @Test
+  fun requireAllPermissionsGranted_throwsListingOnlyMissing() {
+    val h = Harness()
+    h.grant("android.permission.READ_SMS")
+    // SEND_SMS stays at default-denied.
+    val ex = assertThrows(PermissionDeniedException::class.java) {
+      PermissionGuards.requireAllPermissionsGranted(
+        h.context,
+        listOf("android.permission.READ_SMS", "android.permission.SEND_SMS")
+      )
+    }
+    assertEquals(listOf("android.permission.SEND_SMS"), ex.deniedPermissions,
+      "deniedPermissions should list only the missing permissions, " +
+        "not the full required set"
+    )
+  }
+
+  @Test
+  fun requireAllPermissionsGranted_emptyCollectionIsVacuouslySatisfied() {
+    // Matches areAllPermissionsGranted(emptyList()) returning true.
+    val h = Harness()
+    PermissionGuards.requireAllPermissionsGranted(h.context, emptyList())
+  }
+
+  // ── requireRoleHeld ───────────────────────────────────────────────────
+
+  @Test
+  fun requireRoleHeld_noThrowWhenRoleHeld() {
+    val h = Harness()
+    `when`(h.roleManager.isRoleAvailable(RoleManager.ROLE_SMS)).thenReturn(true)
+    `when`(h.roleManager.isRoleHeld(RoleManager.ROLE_SMS)).thenReturn(true)
+    PermissionGuards.requireRoleHeld(h.context, RoleManager.ROLE_SMS)
+  }
+
+  @Test
+  fun requireRoleHeld_throwsWhenRoleNotHeld() {
+    val h = Harness()
+    `when`(h.roleManager.isRoleAvailable(RoleManager.ROLE_SMS)).thenReturn(true)
+    `when`(h.roleManager.isRoleHeld(RoleManager.ROLE_SMS)).thenReturn(false)
+    val ex = assertThrows(PermissionDeniedException::class.java) {
+      PermissionGuards.requireRoleHeld(h.context, RoleManager.ROLE_SMS)
+    }
+    assertEquals(listOf(RoleManager.ROLE_SMS), ex.deniedPermissions)
   }
 }

@@ -26,3 +26,48 @@ enum PermissionGrant {
   /// iOS provisional notification authorization (delivers quietly).
   provisional,
 }
+
+/// Status predicates shared by callers that branch on [PermissionGrant]
+/// without rebuilding the same switches. Used by the facade's gate
+/// helpers (`ensureGranted`, `guard`) and by [PermissionResult] so the
+/// definition of "satisfied" / "denied" / "terminal" lives in one place.
+extension PermissionGrantStatus on PermissionGrant {
+  /// Grant is usable: the caller may proceed with the gated operation.
+  ///
+  /// `limited` and `provisional` are treated as satisfied because both
+  /// allow the core operation to run — the caller opted into a reduced
+  /// capability by asking for them (iOS limited photos; iOS provisional
+  /// notifications that deliver quietly).
+  bool get isSatisfied =>
+      this == PermissionGrant.granted ||
+      this == PermissionGrant.limited ||
+      this == PermissionGrant.provisional;
+
+  /// User (or OS) said no, in any form. Mutually exclusive with
+  /// [isSatisfied] and [isUnsupported].
+  bool get isDenied =>
+      this == PermissionGrant.denied ||
+      this == PermissionGrant.permanentlyDenied ||
+      this == PermissionGrant.restricted;
+
+  /// The permission cannot be exercised on this platform / OS version.
+  ///
+  /// Not the same as [isDenied]: there's no user action that can change
+  /// an unsupported grant. Callers should branch their feature off
+  /// rather than prompt.
+  bool get isUnsupported =>
+      this == PermissionGrant.notApplicable ||
+      this == PermissionGrant.notAvailable;
+
+  /// Requesting this permission is a no-op: either the OS will refuse
+  /// to prompt (`permanentlyDenied`, `restricted`) or the concept
+  /// doesn't exist here (`notApplicable`, `notAvailable`).
+  ///
+  /// The facade's `ensureGranted` short-circuits on this to avoid
+  /// pointless platform round-trips and misleading prompt attempts.
+  bool get isTerminal =>
+      this == PermissionGrant.permanentlyDenied ||
+      this == PermissionGrant.restricted ||
+      this == PermissionGrant.notApplicable ||
+      this == PermissionGrant.notAvailable;
+}
