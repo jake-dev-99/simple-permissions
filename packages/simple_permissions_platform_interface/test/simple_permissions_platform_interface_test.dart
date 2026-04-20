@@ -654,6 +654,71 @@ void main() {
     });
   });
 
+  group('PermissionGrantStatus extension', () {
+    test('isSatisfied covers granted, limited, provisional', () {
+      expect(PermissionGrant.granted.isSatisfied, isTrue);
+      expect(PermissionGrant.limited.isSatisfied, isTrue);
+      expect(PermissionGrant.provisional.isSatisfied, isTrue);
+      expect(PermissionGrant.denied.isSatisfied, isFalse);
+      expect(PermissionGrant.permanentlyDenied.isSatisfied, isFalse);
+      expect(PermissionGrant.restricted.isSatisfied, isFalse);
+      expect(PermissionGrant.notApplicable.isSatisfied, isFalse);
+      expect(PermissionGrant.notAvailable.isSatisfied, isFalse);
+    });
+
+    test('isDenied covers denied, permanentlyDenied, restricted', () {
+      expect(PermissionGrant.denied.isDenied, isTrue);
+      expect(PermissionGrant.permanentlyDenied.isDenied, isTrue);
+      expect(PermissionGrant.restricted.isDenied, isTrue);
+      expect(PermissionGrant.granted.isDenied, isFalse);
+      expect(PermissionGrant.limited.isDenied, isFalse);
+      expect(PermissionGrant.provisional.isDenied, isFalse);
+      expect(PermissionGrant.notApplicable.isDenied, isFalse);
+      expect(PermissionGrant.notAvailable.isDenied, isFalse);
+    });
+
+    test('isUnsupported covers notApplicable, notAvailable', () {
+      expect(PermissionGrant.notApplicable.isUnsupported, isTrue);
+      expect(PermissionGrant.notAvailable.isUnsupported, isTrue);
+      expect(PermissionGrant.granted.isUnsupported, isFalse);
+      expect(PermissionGrant.denied.isUnsupported, isFalse);
+    });
+
+    test('isTerminal covers permanentlyDenied, restricted, and unsupported',
+        () {
+      expect(PermissionGrant.permanentlyDenied.isTerminal, isTrue);
+      expect(PermissionGrant.restricted.isTerminal, isTrue);
+      expect(PermissionGrant.notApplicable.isTerminal, isTrue);
+      expect(PermissionGrant.notAvailable.isTerminal, isTrue);
+      // Not terminal: a re-request is a sensible thing to do.
+      expect(PermissionGrant.denied.isTerminal, isFalse);
+      expect(PermissionGrant.granted.isTerminal, isFalse);
+      expect(PermissionGrant.limited.isTerminal, isFalse);
+      expect(PermissionGrant.provisional.isTerminal, isFalse);
+    });
+
+    test('isSatisfied and isDenied are mutually exclusive', () {
+      for (final grant in PermissionGrant.values) {
+        expect(grant.isSatisfied && grant.isDenied, isFalse,
+            reason: '$grant cannot be both satisfied and denied');
+      }
+    });
+
+    test('every PermissionGrant value is classified into exactly one of '
+        'satisfied / denied / unsupported', () {
+      for (final grant in PermissionGrant.values) {
+        final categories = [
+          grant.isSatisfied,
+          grant.isDenied,
+          grant.isUnsupported,
+        ].where((b) => b).length;
+        expect(categories, 1,
+            reason: '$grant must fall into exactly one predicate; '
+                'got $categories');
+      }
+    });
+  });
+
   group('LocationAccuracyStatus', () {
     test('has expected values', () {
       expect(
