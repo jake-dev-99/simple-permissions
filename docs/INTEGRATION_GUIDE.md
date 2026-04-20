@@ -155,22 +155,67 @@ None of these are runtime-requestable, and none of them belong in simple-permiss
 
 ## Sibling-plugin patterns — iOS / macOS
 
-Apple doesn't have a lint-equivalent for missing authorization — the frameworks throw or return a sentinel at runtime. The separation-of-concerns model still applies, just without the annotation layer:
+Apple has no lint-equivalent for missing authorization — the separation-of-concerns model still applies, but there's only one signal (the runtime assertion). Since 1.7.0, the iOS and macOS modules ship a `PermissionGuards` Swift namespace that mirrors the Kotlin one.
 
-1. The sibling plugin's Swift method calls the appropriate `authorizationStatus(for:)` before the framework call.
-2. On not-authorized, throw a domain error (matching `PermissionDeniedException` in spirit) so the caller gets a clear signal.
+### Single signal: `PermissionGuards.require*`
 
 ```swift
-func placeCall(_ url: URL) throws {
-    let status = CXCallObserver().authorizationStatus  // or equivalent
-    guard status == .authorized else {
-        throw PermissionDeniedError(kind: .callKitUnauthorized)
-    }
-    // framework call
+import simple_permissions_ios   // or simple_permissions_macos on macOS
+
+func startCall(to uri: URL) throws {
+    // Accepts any of the listed kinds, matching the equivalent
+    // Kotlin `requireAnyPermissionGranted` shape used on Android.
+    try PermissionGuards.requireAnyAuthorized(for: [.microphone])
+    // framework call — CXCallController.requestTransaction, etc.
+}
+
+func syncContacts() throws {
+    try PermissionGuards.requireAuthorized(for: .contacts)
+    // CNContactStore fetch
+}
+
+func syncCalendar() throws {
+    try PermissionGuards.requireAllAuthorized(for: [.calendar, .reminders])
+    // EKEventStore fetch
 }
 ```
 
-A shared `PermissionGuards.swift` analog is on the roadmap; track it in the release notes.
+On missing authorization each helper throws a library-specific `PermissionDeniedError` whose `.deniedPermissions: [String]` lists the missing kind names — so callers can surface precise error UI rather than whatever opaque status their framework call returned.
+
+Pick the helper that matches the framework contract:
+
+| Framework contract                         | Helper                          |
+| ------------------------------------------ | ------------------------------- |
+| Needs one specific authorization           | `requireAuthorized(for:)`       |
+| Accepts any of several equivalents         | `requireAnyAuthorized(for:)`    |
+| Needs all of several                       | `requireAllAuthorized(for:)`    |
+| Notifications (async-only framework API)   | `requireNotificationsAuthorized()` |
+
+### Covered kinds
+
+**iOS** (`ApplePermissionKind`, 12 cases): `.contacts`, `.camera`, `.microphone`, `.calendar`, `.reminders`, `.photoLibrary`, `.photoLibraryAddOnly`, `.location`, `.speech`, `.tracking`, `.motion`, `.bluetooth`.
+
+**macOS** (`MacOSPermissionKind`, 8 cases): `.contacts`, `.camera`, `.microphone`, `.calendar`, `.reminders`, `.photoLibrary`, `.photoLibraryAddOnly`, `.location`.
+
+### Explicitly NOT covered
+
+- **`.health`** — `HKHealthStore.authorizationStatus(for:)` is parameterized by `HKObjectType`, so a single case can't carry the type. Sibling plugins needing HealthKit gating call the framework directly with a domain wrapper. The helpers will grow a health case when a concrete `simple-health` plugin materializes.
+
+### Info.plist — the Apple equivalent of `<uses-permission>`
+
+Apple has no direct analog to Android's `<service android:permission="…">` split, but the parallel worth knowing: **usage-description strings belong in the client app's `Info.plist`, not in any sibling plugin**.
+
+Every dangerous framework (`NSCameraUsageDescription`, `NSContactsUsageDescription`, `NSMicrophoneUsageDescription`, `NSCalendarsFullAccessUsageDescription`, `NSRemindersFullAccessUsageDescription`, `NSPhotoLibraryUsageDescription`, `NSPhotoLibraryAddUsageDescription`, `NSLocationWhenInUseUsageDescription`, `NSBluetoothAlwaysUsageDescription`, `NSSpeechRecognitionUsageDescription`, `NSUserTrackingUsageDescription`, `NSMotionUsageDescription`) requires its usage-description key or the app crashes the moment the framework is invoked. A sibling plugin **should not** inject these keys — the app author decides what string the user sees. The plugin's README should list the keys the app needs; simple-permissions' README already does this in the "iOS setup" section.
+
+### Adopting it in your plugin
+
+One line in your podspec:
+
+```ruby
+s.dependency 'simple_permissions_ios'   # or _macos
+```
+
+The `DEFINES_MODULE => YES` flag on simple-permissions's podspec is already set, so `import simple_permissions_ios` in your Swift code resolves without further module-map wiring.
 
 ---
 
@@ -183,7 +228,8 @@ Before shipping, verify:
 - [ ] That same method calls the appropriate `PermissionGuards.require*` as the *first* statement, before any framework call.
 - [ ] `./gradlew :<plugin>:lintDebug` passes with zero `MissingPermission` errors.
 - [ ] No `BIND_*` permission in `<uses-permission>`. Every system-bound service has `android:permission="..."` on the `<service>` itself.
-- [ ] iOS/macOS handlers call `authorizationStatus(for:)` before framework calls and throw a domain error on not-authorized.
+- [ ] iOS/macOS handlers call `try PermissionGuards.requireAuthorized(for: …)` (or the `Any` / `All` / async-notifications variants) as the first statement of any permission-gated method.
+- [ ] The client app's `Info.plist` documents every `NS*UsageDescription` key the plugin requires; the plugin itself does NOT inject them.
 - [ ] The plugin's README links to this guide rather than re-explaining the pattern.
 
 ---
@@ -191,5 +237,7 @@ Before shipping, verify:
 ## See also
 
 - [`lib/simple_permissions_native.dart`](../lib/simple_permissions_native.dart) — facade, including the gate helpers.
-- [`PermissionGuards.kt`](../packages/simple_permissions_android/android/src/main/kotlin/io/simplezen/simple_permissions_android/PermissionGuards.kt) — native assertions.
+- [`PermissionGuards.kt`](../packages/simple_permissions_android/android/src/main/kotlin/io/simplezen/simple_permissions_android/PermissionGuards.kt) — Android native assertions.
+- [`PermissionGuards.swift` (iOS)](../packages/simple_permissions_ios/ios/Classes/PermissionGuards.swift) — iOS native assertions.
+- [`PermissionGuards.swift` (macOS)](../packages/simple_permissions_macos/macos/Classes/PermissionGuards.swift) — macOS native assertions.
 - [`example/lib/main.dart`](../example/lib/main.dart) — `guard`-based demo card.
