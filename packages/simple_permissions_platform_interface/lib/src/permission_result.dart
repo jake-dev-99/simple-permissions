@@ -18,7 +18,8 @@ class PermissionResult {
   ///
   /// Treats [PermissionGrant.granted], [PermissionGrant.limited], and
   /// [PermissionGrant.provisional] as satisfied.
-  bool get isFullyGranted => permissions.values.every(_isSatisfied);
+  bool get isFullyGranted =>
+      permissions.values.every((grant) => grant.isSatisfied);
 
   /// Alias for [isFullyGranted].
   bool get isReady => isFullyGranted;
@@ -30,10 +31,11 @@ class PermissionResult {
   bool get isOperational => isFullyGranted;
 
   /// Whether any permission has been denied (including permanently).
-  bool get hasDenial => permissions.values.any(_isDenied);
+  bool get hasDenial => permissions.values.any((grant) => grant.isDenied);
 
   /// Whether any permission is unsupported on this platform or OS version.
-  bool get hasUnsupported => permissions.values.any(_isUnsupported);
+  bool get hasUnsupported =>
+      permissions.values.any((grant) => grant.isUnsupported);
 
   /// Whether any permission has been permanently denied.
   bool get hasPermanentDenial =>
@@ -44,7 +46,7 @@ class PermissionResult {
 
   /// All permissions that are in a denied state.
   List<Permission> get denied => permissions.entries
-      .where((e) => _isDenied(e.value))
+      .where((e) => e.value.isDenied)
       .map((e) => e.key)
       .toList();
 
@@ -62,27 +64,13 @@ class PermissionResult {
 
   /// Permissions that are unsupported on this platform or OS version.
   List<Permission> get unsupported => permissions.entries
-      .where((e) => _isUnsupported(e.value))
+      .where((e) => e.value.isUnsupported)
       .map((e) => e.key)
       .toList();
 
   /// Look up the grant state for a specific permission.
   PermissionGrant? operator [](Permission permission) =>
       permissions[permission];
-
-  static bool _isSatisfied(PermissionGrant grant) =>
-      grant == PermissionGrant.granted ||
-      grant == PermissionGrant.limited ||
-      grant == PermissionGrant.provisional;
-
-  static bool _isUnsupported(PermissionGrant grant) =>
-      grant == PermissionGrant.notApplicable ||
-      grant == PermissionGrant.notAvailable;
-
-  static bool _isDenied(PermissionGrant grant) =>
-      grant == PermissionGrant.denied ||
-      grant == PermissionGrant.permanentlyDenied ||
-      grant == PermissionGrant.restricted;
 
   @override
   bool operator ==(Object other) {
