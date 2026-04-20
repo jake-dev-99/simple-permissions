@@ -8,3 +8,18 @@ analyzer:
     # requires the `pigeon` package on the classpath, which
     # we deliberately don't pull in at plugin-consumer time.
     - pigeon.dart
+  errors:
+    unawaited_futures: error
+    unused_import: error
+    unused_local_variable: error
+    dead_code: error
+    invalid_null_aware_operator: error
+
+linter:
+  rules:
+    - prefer_null_aware_operators
+    - cancel_subscriptions
+    - close_sinks
+    - test_types_in_equals
+    - throw_in_finally
+    - unnecessary_await_in_return
