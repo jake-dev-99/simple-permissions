@@ -42,8 +42,7 @@ class SimplePermissionsAndroid extends SimplePermissionsPlatform {
   final PermissionsApi _api;
   final SdkVersionProvider? _sdkVersionOverride;
 
-  /// Lazily-built handler registry.
-  late final Map<Type, PermissionHandler> _registry =
+  final Map<Type, PermissionHandler> _registry =
       buildAndroidPermissionRegistry();
 
   // Caches the SDK version obtained from the native side.
