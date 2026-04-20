@@ -42,8 +42,7 @@ class SimplePermissionsAndroid extends SimplePermissionsPlatform {
   final PermissionsApi _api;
   final SdkVersionProvider? _sdkVersionOverride;
 
-  /// Lazily-built handler registry.
-  late final Map<Type, PermissionHandler> _registry =
+  final Map<Type, PermissionHandler> _registry =
       buildAndroidPermissionRegistry();
 
   // Caches the SDK version obtained from the native side.
@@ -96,6 +95,7 @@ class SimplePermissionsAndroid extends SimplePermissionsPlatform {
   Future<PermissionGrant> check(Permission permission) async {
     final sdk = await _ensureSdkVersionLoaded();
     final resolved = _resolve(permission, sdk);
+    if (resolved == null) return PermissionGrant.notAvailable;
     final handler = _registry[resolved.runtimeType];
 
     if (handler == null) {
@@ -114,6 +114,7 @@ class SimplePermissionsAndroid extends SimplePermissionsPlatform {
   Future<PermissionGrant> request(Permission permission) async {
     final sdk = await _ensureSdkVersionLoaded();
     final resolved = _resolve(permission, sdk);
+    if (resolved == null) return PermissionGrant.notAvailable;
     final handler = _registry[resolved.runtimeType];
 
     if (handler == null) {
@@ -142,6 +143,10 @@ class SimplePermissionsAndroid extends SimplePermissionsPlatform {
 
     for (final permission in permissions) {
       final resolved = _resolve(permission, sdk);
+      if (resolved == null) {
+        resolvedGrants[permission] = PermissionGrant.notAvailable;
+        continue;
+      }
       final handler = _registry[resolved.runtimeType];
       if (handler == null) {
         resolvedGrants[permission] = PermissionGrant.notApplicable;
@@ -188,6 +193,10 @@ class SimplePermissionsAndroid extends SimplePermissionsPlatform {
 
     for (final permission in permissions) {
       final resolved = _resolve(permission, sdk);
+      if (resolved == null) {
+        resolvedGrants[permission] = PermissionGrant.notAvailable;
+        continue;
+      }
       final handler = _registry[resolved.runtimeType];
       if (handler == null) {
         resolvedGrants[permission] = PermissionGrant.notApplicable;
@@ -275,6 +284,7 @@ class SimplePermissionsAndroid extends SimplePermissionsPlatform {
   Future<bool> isSupported(Permission permission) async {
     final sdk = await _ensureSdkVersionLoaded();
     final resolved = _resolve(permission, sdk);
+    if (resolved == null) return false;
     final handler = _registry[resolved.runtimeType];
     if (handler == null) return false;
     return handler.isSupported(() => sdk);
@@ -302,27 +312,21 @@ class SimplePermissionsAndroid extends SimplePermissionsPlatform {
   // VersionedPermission resolution
   // ===========================================================================
 
-  /// If [permission] is a [VersionedPermission], resolve it to the concrete
-  /// [Permission] for the running SDK version. Otherwise return as-is.
-  Permission _resolve(Permission permission, [int? sdk]) {
+  /// Resolves [permission] to the concrete [Permission] for the running
+  /// SDK. Returns the input unchanged for non-[VersionedPermission]s, and
+  /// `null` when the caller supplied a [VersionedPermission] whose variants
+  /// don't cover [sdk]. Callers treat `null` as [PermissionGrant.notAvailable]
+  /// rather than silently falling through to a registry miss.
+  Permission? _resolve(Permission permission, int sdk) {
     if (permission is! VersionedPermission) return permission;
 
-    final effectiveSdk =
-        sdk ?? _sdkVersionOverride?.call() ?? _cachedSdkVersion;
-    if (effectiveSdk == null) return permission;
-
     for (final variant in permission.variants) {
-      if (variant.minApiLevel != null && effectiveSdk < variant.minApiLevel!) {
-        continue;
-      }
-      if (variant.maxApiLevel != null && effectiveSdk > variant.maxApiLevel!) {
-        continue;
-      }
+      final min = variant.minApiLevel;
+      final max = variant.maxApiLevel;
+      if (min != null && sdk < min) continue;
+      if (max != null && sdk > max) continue;
       return variant.permission;
     }
-
-    // No variant matches — shouldn't happen for well-defined versioned
-    // permissions, but return the original to fail gracefully.
-    return permission;
+    return null;
   }
 }

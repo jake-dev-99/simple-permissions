@@ -6,3 +6,20 @@ analyzer:
     missing_return: error
     invalid_override_of_non_virtual_member: error
     override_on_non_overriding_member: error
+    # Silent bugs — fail the build, not a warning.
+    unawaited_futures: error
+    unused_import: error
+    unused_local_variable: error
+    dead_code: error
+    invalid_null_aware_operator: error
+
+linter:
+  rules:
+    - prefer_null_aware_operators
+    - cancel_subscriptions
+    - close_sinks
+    - avoid_slow_async_io
+    - test_types_in_equals
+    - throw_in_finally
+    - unnecessary_await_in_return
+    - use_build_context_synchronously
