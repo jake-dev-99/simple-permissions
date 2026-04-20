@@ -9,6 +9,7 @@ import 'package:simple_permissions_platform_interface/simple_permissions_platfor
 // tests inject a mock via the constructor and never call createBrowserApi().
 import 'src/api_factory_stub.dart'
     if (dart.library.js_interop) 'src/api_factory_web.dart';
+import 'src/browser_permission_state.dart';
 import 'src/web_permission_registry.dart';
 import 'src/web_permissions_api_base.dart';
 
@@ -54,8 +55,10 @@ class SimplePermissionsWeb extends SimplePermissionsPlatform {
 
     // Check current state first — avoid re-requesting if already decided.
     final currentState = await _api.queryPermission(webName);
-    if (currentState == 'granted') return PermissionGrant.granted;
-    if (currentState == 'denied') return PermissionGrant.permanentlyDenied;
+    if (currentState == browserStateGranted) return PermissionGrant.granted;
+    if (currentState == browserStateDenied) {
+      return PermissionGrant.permanentlyDenied;
+    }
 
     // Trigger the browser-specific request flow.
     final granted = await _requestByType(resolved);
@@ -75,7 +78,7 @@ class SimplePermissionsWeb extends SimplePermissionsPlatform {
   Future<LocationAccuracyStatus> checkLocationAccuracy() async {
     // Web geolocation doesn't expose precision levels.
     final state = await _api.queryPermission('geolocation');
-    if (state == 'granted') return LocationAccuracyStatus.precise;
+    if (state == browserStateGranted) return LocationAccuracyStatus.precise;
     return LocationAccuracyStatus.notApplicable;
   }
 
@@ -99,13 +102,13 @@ class SimplePermissionsWeb extends SimplePermissionsPlatform {
   /// Map browser `PermissionStatus.state` to [PermissionGrant].
   static PermissionGrant _mapBrowserState(String? state) {
     switch (state) {
-      case 'granted':
+      case browserStateGranted:
         return PermissionGrant.granted;
-      case 'denied':
+      case browserStateDenied:
         // Browser "denied" means the user must change it in site settings —
         // equivalent to permanentlyDenied on mobile.
         return PermissionGrant.permanentlyDenied;
-      case 'prompt':
+      case browserStatePrompt:
         // Not yet asked — re-requestable.
         return PermissionGrant.denied;
       default:
@@ -127,6 +130,6 @@ class SimplePermissionsWeb extends SimplePermissionsPlatform {
 
   Future<bool> _requestNotifications() async {
     final result = await _api.requestNotifications();
-    return result == 'granted';
+    return result == browserStateGranted;
   }
 }
