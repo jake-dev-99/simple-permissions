@@ -1,9 +1,17 @@
 import 'dart:async';
 import 'dart:js_interop';
 
+import 'package:flutter/foundation.dart';
 import 'package:web/web.dart' as web;
 
+import 'browser_permission_state.dart';
 import 'web_permissions_api_base.dart';
+
+void _logBrowserApiError(String op, Object error) {
+  if (kDebugMode) {
+    debugPrint('[simple_permissions_web] $op failed: $error');
+  }
+}
 
 /// Production implementation using browser APIs via `package:web`.
 class BrowserPermissionsApi implements WebPermissionsApi {
@@ -13,7 +21,11 @@ class BrowserPermissionsApi implements WebPermissionsApi {
       final desc = _createPermissionDescriptor(name);
       final status = await web.window.navigator.permissions.query(desc).toDart;
       return status.state;
-    } catch (_) {
+    } catch (err) {
+      // Swallowed: browser returned null state (API missing, unsupported
+      // descriptor name, secure-context violation, etc). Callers treat
+      // null as "unknown" → notApplicable. Surface the detail for devs.
+      _logBrowserApiError('permissions.query($name)', err);
       return null;
     }
   }
@@ -31,7 +43,8 @@ class BrowserPermissionsApi implements WebPermissionsApi {
         track.stop();
       }
       return true;
-    } catch (_) {
+    } catch (err) {
+      _logBrowserApiError('getUserMedia(camera)', err);
       return false;
     }
   }
@@ -48,7 +61,8 @@ class BrowserPermissionsApi implements WebPermissionsApi {
         track.stop();
       }
       return true;
-    } catch (_) {
+    } catch (err) {
+      _logBrowserApiError('getUserMedia(microphone)', err);
       return false;
     }
   }
@@ -78,8 +92,9 @@ class BrowserPermissionsApi implements WebPermissionsApi {
     try {
       final result = await web.Notification.requestPermission().toDart;
       return result.toDart;
-    } catch (_) {
-      return 'denied';
+    } catch (err) {
+      _logBrowserApiError('Notification.requestPermission', err);
+      return browserStateDenied;
     }
   }
 
