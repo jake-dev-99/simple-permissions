@@ -55,14 +55,20 @@ class BrowserPermissionsApi implements WebPermissionsApi {
 
   @override
   Future<bool> requestGeolocation() async {
+    // Single-shot discipline: the browser contract is success XOR error, but
+    // we harden against a misbehaving implementation (or a duplicated
+    // callback firing) by settling the completer at most once.
     final completer = Completer<bool>();
+    var settled = false;
+    void settle(bool granted) {
+      if (settled) return;
+      settled = true;
+      completer.complete(granted);
+    }
+
     web.window.navigator.geolocation.getCurrentPosition(
-      ((web.GeolocationPosition pos) {
-        if (!completer.isCompleted) completer.complete(true);
-      }).toJS,
-      ((web.GeolocationPositionError err) {
-        if (!completer.isCompleted) completer.complete(false);
-      }).toJS,
+      ((web.GeolocationPosition _) => settle(true)).toJS,
+      ((web.GeolocationPositionError _) => settle(false)).toJS,
     );
     return completer.future;
   }
