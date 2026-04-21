@@ -6,6 +6,7 @@ import CoreLocation
 import CoreMotion
 import EventKit
 import Foundation
+import HealthKit
 import Photos
 import Speech
 import UserNotifications
@@ -25,8 +26,6 @@ import UserNotifications
 ///   [PermissionGuards.requireNotificationsAuthorized] /
 ///   [PermissionGuards.requestNotificationsAuthorization] because
 ///   `UNUserNotificationCenter.getNotificationSettings` is async-only.
-/// - `health` — an HealthKit authorization lookup is parameterized by
-///   an `HKObjectType`. Added in 1.8.0; see `.health(_:)`.
 public enum ApplePermissionKind {
     case contacts
     case camera
@@ -41,10 +40,28 @@ public enum ApplePermissionKind {
     case motion
     case bluetooth              // iOS 13+
 
+    /// HealthKit authorization for a specific [HKObjectType] (e.g.
+    /// `HKObjectType.quantityType(forIdentifier: .stepCount)`).
+    ///
+    /// **Important — Apple's privacy model**: `HKHealthStore.authorizationStatus(for:)`
+    /// only reports **write** authorization. Read authorization is
+    /// opaque by design (Apple prevents apps from inferring
+    /// "user has no data" from "app has no read access"). So
+    /// `isAuthorized(for: .health(type))` returning true means "can
+    /// write," not "can read." Callers needing read-gated flows
+    /// should attempt the fetch and handle empty/error results
+    /// rather than pre-check.
+    ///
+    /// The request path (`requestAuthorization(for: .health(type))`)
+    /// does ask the user for both share and read (where the type
+    /// supports it), so the prompt surfaces correctly.
+    case health(HKObjectType)
+
     /// Stable string identifier used in error messages and
-    /// `PermissionDeniedError.deniedPermissions`. Stays equivalent to
-    /// the pre-1.8 `String`-backed rawValue for each case so log scrapers
-    /// and error-equality checks continue to work.
+    /// `PermissionDeniedError.deniedPermissions`. For `.health(_:)`,
+    /// uses `"health:<identifier>"` where `<identifier>` is the
+    /// HKObjectType's identifier string, so error messages can
+    /// distinguish which specific health type failed.
     public var identifier: String {
         switch self {
         case .contacts:            return "contacts"
@@ -59,6 +76,7 @@ public enum ApplePermissionKind {
         case .tracking:            return "tracking"
         case .motion:              return "motion"
         case .bluetooth:           return "bluetooth"
+        case .health(let type):    return "health:\(type.identifier)"
         }
     }
 }
@@ -205,18 +223,19 @@ public enum PermissionGuards {
     /// differentiates from "supported and authorized."
     public static func authorizationStatus(for kind: ApplePermissionKind) -> PermissionGrant {
         switch kind {
-        case .contacts:            return contactsStatus()
-        case .camera:              return avCaptureStatus(for: .video)
-        case .microphone:          return microphoneStatus()
-        case .calendar:            return eventKitStatus(for: .event)
-        case .reminders:           return eventKitStatus(for: .reminder)
-        case .photoLibrary:        return photoLibraryStatus(for: .readWrite)
-        case .photoLibraryAddOnly: return photoLibraryStatus(for: .addOnly)
-        case .location:            return locationStatus()
-        case .speech:              return speechStatus()
-        case .tracking:            return trackingStatus()
-        case .motion:              return motionStatus()
-        case .bluetooth:           return bluetoothStatus()
+        case .contacts:             return contactsStatus()
+        case .camera:               return avCaptureStatus(for: .video)
+        case .microphone:           return microphoneStatus()
+        case .calendar:             return eventKitStatus(for: .event)
+        case .reminders:            return eventKitStatus(for: .reminder)
+        case .photoLibrary:         return photoLibraryStatus(for: .readWrite)
+        case .photoLibraryAddOnly:  return photoLibraryStatus(for: .addOnly)
+        case .location:             return locationStatus()
+        case .speech:               return speechStatus()
+        case .tracking:             return trackingStatus()
+        case .motion:               return motionStatus()
+        case .bluetooth:            return bluetoothStatus()
+        case .health(let type):     return healthStatus(for: type)
         }
     }
 
@@ -538,6 +557,23 @@ public enum PermissionGuards {
         return .notAvailable
     }
 
+    private static func healthStatus(for type: HKObjectType) -> PermissionGrant {
+        // Not every iOS device has HealthKit (iPad historically
+        // didn't). Report notAvailable so callers disable their
+        // health-gated features rather than treating notAvailable as
+        // a prompt opportunity.
+        guard HKHealthStore.isHealthDataAvailable() else { return .notAvailable }
+        // Apple's privacy model: this status only reflects WRITE
+        // authorization. Read is opaque. See the doc comment on
+        // `.health(_:)`.
+        switch HKHealthStore().authorizationStatus(for: type) {
+        case .notDetermined:     return .denied
+        case .sharingDenied:     return .permanentlyDenied
+        case .sharingAuthorized: return .granted
+        @unknown default:        return .denied
+        }
+    }
+
     // MARK: - Private per-framework request helpers
 
     /// Dispatches to the kind-specific request helper after
@@ -546,18 +582,19 @@ public enum PermissionGuards {
         for kind: ApplePermissionKind
     ) async -> PermissionGrant {
         switch kind {
-        case .contacts:            return await requestContacts()
-        case .camera:              return await requestAVCapture(for: .video)
-        case .microphone:          return await requestMicrophone()
-        case .calendar:            return await requestEventKit(for: .event)
-        case .reminders:           return await requestEventKit(for: .reminder)
-        case .photoLibrary:        return await requestPhotoLibrary(for: .readWrite)
-        case .photoLibraryAddOnly: return await requestPhotoLibrary(for: .addOnly)
-        case .location:            return await requestLocation()
-        case .speech:              return await requestSpeech()
-        case .tracking:            return await requestTracking()
-        case .motion:              return await requestMotion()
-        case .bluetooth:           return await requestBluetooth()
+        case .contacts:             return await requestContacts()
+        case .camera:               return await requestAVCapture(for: .video)
+        case .microphone:           return await requestMicrophone()
+        case .calendar:             return await requestEventKit(for: .event)
+        case .reminders:            return await requestEventKit(for: .reminder)
+        case .photoLibrary:         return await requestPhotoLibrary(for: .readWrite)
+        case .photoLibraryAddOnly:  return await requestPhotoLibrary(for: .addOnly)
+        case .location:             return await requestLocation()
+        case .speech:               return await requestSpeech()
+        case .tracking:             return await requestTracking()
+        case .motion:               return await requestMotion()
+        case .bluetooth:            return await requestBluetooth()
+        case .health(let type):     return await requestHealth(type: type)
         }
     }
 
@@ -697,6 +734,38 @@ public enum PermissionGuards {
     private static func requestBluetooth() async -> PermissionGrant {
         guard #available(iOS 13.0, *) else { return .notAvailable }
         return await _BluetoothAuthorizationCoordinator.request()
+    }
+
+    private static func requestHealth(type: HKObjectType) async -> PermissionGrant {
+        guard HKHealthStore.isHealthDataAvailable() else { return .notAvailable }
+        let store = HKHealthStore()
+        // `toShare` requires HKSampleType. Types that aren't sample
+        // types (e.g. HKCharacteristicType) aren't writable; request
+        // read-only in that case. Types that ARE HKSampleType get
+        // requested for both read and write so the user sees a
+        // single consolidated prompt.
+        let shareTypes: Set<HKSampleType> = (type as? HKSampleType).map { [$0] } ?? []
+        let readTypes: Set<HKObjectType> = [type]
+        do {
+            if #available(iOS 15.0, *) {
+                try await store.requestAuthorization(
+                    toShare: shareTypes, read: readTypes
+                )
+            } else {
+                _ = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+                    store.requestAuthorization(
+                        toShare: shareTypes, read: readTypes
+                    ) { success, _ in
+                        cont.resume(returning: success)
+                    }
+                }
+            }
+        } catch {
+            // Request errored (e.g. HealthKit unavailable at request
+            // time despite isHealthDataAvailable reporting true).
+            // Fall through to status read.
+        }
+        return healthStatus(for: type)
     }
 }
 
