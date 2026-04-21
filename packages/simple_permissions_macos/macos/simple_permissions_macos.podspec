@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'simple_permissions_macos'
-  s.version          = '1.3.0'
+  s.version          = '1.4.0'
   s.summary          = 'macOS implementation for simple_permissions federated plugin.'
   s.description      = <<-DESC
 macOS implementation for simple_permissions federated plugin.

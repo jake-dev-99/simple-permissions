@@ -221,11 +221,22 @@ Declare permissions in `android/app/src/main/AndroidManifest.xml`. Only include 
 
 See the full list of Android permission strings in the [Android developer docs](https://developer.android.com/reference/android/Manifest.permission).
 
-## Native Kotlin helpers for sibling plugins
+## Native helpers for your own Kotlin / Swift code
 
-Plugin authors whose Android code needs to **check** (read-only) whether a
-runtime permission is granted or whether the app holds a default-app role can
-import `PermissionGuards` from `simple_permissions_android` instead of
+If your app has its own native code (a custom `MethodChannel`, an app
+extension, a native UI component) that touches permission-gated framework
+APIs, `PermissionGuards` is the sanctioned way to check / require / request
+authorization from native code without reaching for Apple's or Google's
+raw APIs.
+
+See [`docs/INTEGRATION_GUIDE.md`](docs/INTEGRATION_GUIDE.md) for the
+full walkthrough — Dart side, Android lint pattern, iOS/macOS Swift
+API, Info.plist keys, and the manifest split for `BIND_*` permissions.
+The quick Android-only version is below.
+
+### Android
+
+Import `PermissionGuards` from `simple_permissions_android` instead of
 reaching for `ContextCompat.checkSelfPermission(...)` / `RoleManager.isRoleHeld(...)`
 directly.
 
@@ -309,21 +320,10 @@ Gradle classpath and the Dart workspace in lockstep.
 
 #### When none of the above apply
 
-If you *can't* add `simple_permissions_native` to the consuming plugin
-(e.g. you want to avoid the runtime dep for policy reasons), keep using
-Android primitives inline — `ContextCompat.checkSelfPermission(...)` is a
-legitimate read-only OS query, and Rule 2 (*"access state goes through
-simple-permissions"*) is still upheld at the **Dart API boundary**
-(request flows, observation, permission types). `PermissionGuards` is a
-cleanup path, not a requirement.
-
-### No request-side helpers
-
-`PermissionGuards` deliberately does not expose a "request permission"
-equivalent. Request flows surface UI and route through activity bindings —
-they belong behind the Dart API (`SimplePermissionsNative.instance.request(...)`)
-so the prompt is scoped by the user's consent flow, not a random native call
-site.
+If you don't write your own native Android code, you don't need
+`PermissionGuards` at all — the Dart gate helpers
+(`ensureGranted` / `guard`) on `SimplePermissionsNative.instance`
+cover every client-app flow.
 
 ## Architecture
 
