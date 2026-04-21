@@ -28,23 +28,23 @@ final class LocationPermissionHandler: NSObject, PermissionHandler, CLLocationMa
 
       switch status {
       case .authorizedAlways:
-        completion(GrantWire.granted.rawValue)
+        completion(PermissionGrant.granted.rawValue)
         return
       case .authorizedWhenInUse:
         if self.level == .whenInUse {
-          completion(GrantWire.granted.rawValue)
+          completion(PermissionGrant.granted.rawValue)
           return
         }
       case .denied:
-        completion(GrantWire.permanentlyDenied.rawValue)
+        completion(PermissionGrant.permanentlyDenied.rawValue)
         return
       case .restricted:
-        completion(GrantWire.restricted.rawValue)
+        completion(PermissionGrant.restricted.rawValue)
         return
       case .notDetermined:
         break
       @unknown default:
-        completion(GrantWire.denied.rawValue)
+        completion(PermissionGrant.denied.rawValue)
         return
       }
 
@@ -76,19 +76,19 @@ final class LocationPermissionHandler: NSObject, PermissionHandler, CLLocationMa
   private func mapLocationStatus(_ status: CLAuthorizationStatus) -> String {
     switch status {
     case .authorizedAlways:
-      return GrantWire.granted.rawValue
+      return PermissionGrant.granted.rawValue
     case .authorizedWhenInUse:
       return level == .whenInUse
-        ? GrantWire.granted.rawValue
-        : GrantWire.limited.rawValue
+        ? PermissionGrant.granted.rawValue
+        : PermissionGrant.limited.rawValue
     case .notDetermined:
-      return GrantWire.denied.rawValue
+      return PermissionGrant.denied.rawValue
     case .denied:
-      return GrantWire.permanentlyDenied.rawValue
+      return PermissionGrant.permanentlyDenied.rawValue
     case .restricted:
-      return GrantWire.restricted.rawValue
+      return PermissionGrant.restricted.rawValue
     @unknown default:
-      return GrantWire.denied.rawValue
+      return PermissionGrant.denied.rawValue
     }
   }
 }

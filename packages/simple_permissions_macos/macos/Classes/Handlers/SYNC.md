@@ -32,6 +32,8 @@ applies to the other platform.
 
 ## Also shared
 
-- `PermissionSupport.swift` (protocol, GrantWire enum, ensureMainThread) is
-  identical across both platforms.
+- `PermissionSupport.swift` (PermissionHandler protocol + ensureMainThread
+  helper) is near-identical across both platforms. The wire format
+  previously lived in a `GrantWire` enum here; 1.9 consolidated it into
+  the public `PermissionGrant` enum in `PermissionGuards.swift`.
 - `PermissionRegistry.swift` macOS is a subset of iOS.
