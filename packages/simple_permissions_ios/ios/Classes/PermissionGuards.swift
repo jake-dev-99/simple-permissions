@@ -270,6 +270,56 @@ public enum PermissionGuards {
         )
     }
 
+    // MARK: Request (async)
+
+    /// Request authorization for [kind], returning the post-prompt
+    /// grant. Short-circuits without prompting when the current
+    /// grant is already satisfied or in a terminal state
+    /// (permanentlyDenied / restricted / notApplicable / notAvailable)
+    /// — matches the Dart-side `ensureGranted` semantics.
+    ///
+    /// May surface a system prompt the first time it's called for a
+    /// kind whose current state is `.denied` (Apple `.notDetermined`).
+    /// Subsequent calls with the same kind won't re-prompt — Apple's
+    /// frameworks only surface the dialog on the first request.
+    ///
+    /// Callers that want to distinguish "granted" vs "user denied"
+    /// vs "OS restricted" inspect the returned [PermissionGrant].
+    /// Callers that want a throw-on-denial control flow use
+    /// [requireAuthorizationGranted(for:)].
+    public static func requestAuthorization(
+        for kind: ApplePermissionKind
+    ) async -> PermissionGrant {
+        let current = authorizationStatus(for: kind)
+        // isSatisfied covers granted/limited/provisional — already
+        // usable. isTerminal covers permanentlyDenied/restricted/
+        // notApplicable/notAvailable — prompt is a no-op. Only the
+        // remaining state (.denied, meaning Apple's .notDetermined)
+        // triggers a real prompt.
+        if current.isSatisfied || current.isTerminal {
+            return current
+        }
+        return await performRequest(for: kind)
+    }
+
+    /// Request authorization for [kind] and throw
+    /// [PermissionDeniedError] unless the post-prompt grant is
+    /// satisfied. Async counterpart to [requireAuthorized(for:)].
+    ///
+    /// Use at the top of a function about to invoke a framework API
+    /// requiring authorization, when the caller wants the library to
+    /// prompt if needed and fail loudly otherwise.
+    public static func requireAuthorizationGranted(
+        for kind: ApplePermissionKind
+    ) async throws {
+        let grant = await requestAuthorization(for: kind)
+        if grant.isSatisfied { return }
+        throw PermissionDeniedError(
+            deniedPermissions: [kind.identifier],
+            message: "Operation requires \(kind.identifier) but authorization was not granted (\(grant.rawValue))."
+        )
+    }
+
     // MARK: - Notifications (async)
 
     /// True iff the app currently holds notification authorization.
@@ -309,6 +359,46 @@ public enum PermissionGuards {
         throw PermissionDeniedError(
             deniedPermissions: ["notifications"],
             message: "Operation requires notifications authorization but it is not granted."
+        )
+    }
+
+    /// Request notifications authorization, returning the post-prompt
+    /// grant. Short-circuits without prompting when already decided.
+    ///
+    /// [options] controls which delivery capabilities are requested;
+    /// defaults to alert+badge+sound which is the 99% case.
+    /// `.provisional` and `.ephemeral` grants surface as
+    /// [PermissionGrant.provisional].
+    public static func requestNotificationsAuthorization(
+        options: UNAuthorizationOptions = [.alert, .badge, .sound]
+    ) async -> PermissionGrant {
+        let current = await notificationsStatus()
+        if current.isSatisfied || current.isTerminal {
+            return current
+        }
+        do {
+            let granted = try await UNUserNotificationCenter.current()
+                .requestAuthorization(options: options)
+            if granted { return .granted }
+            return await notificationsStatus()
+        } catch {
+            return await notificationsStatus()
+        }
+    }
+
+    /// Request notifications authorization and throw
+    /// [PermissionDeniedError] unless the post-prompt grant is
+    /// satisfied. Async counterpart to
+    /// [requireAuthorizationGranted(for:)] for the notifications
+    /// channel.
+    public static func requireNotificationsAuthorizationGranted(
+        options: UNAuthorizationOptions = [.alert, .badge, .sound]
+    ) async throws {
+        let grant = await requestNotificationsAuthorization(options: options)
+        if grant.isSatisfied { return }
+        throw PermissionDeniedError(
+            deniedPermissions: ["notifications"],
+            message: "Operation requires notifications authorization but it was not granted (\(grant.rawValue))."
         )
     }
 
@@ -446,5 +536,268 @@ public enum PermissionGuards {
         }
         // Pre-iOS-13: no CB permission model. Report notAvailable.
         return .notAvailable
+    }
+
+    // MARK: - Private per-framework request helpers
+
+    /// Dispatches to the kind-specific request helper after
+    /// [requestAuthorization(for:)] confirmed a prompt is warranted.
+    private static func performRequest(
+        for kind: ApplePermissionKind
+    ) async -> PermissionGrant {
+        switch kind {
+        case .contacts:            return await requestContacts()
+        case .camera:              return await requestAVCapture(for: .video)
+        case .microphone:          return await requestMicrophone()
+        case .calendar:            return await requestEventKit(for: .event)
+        case .reminders:           return await requestEventKit(for: .reminder)
+        case .photoLibrary:        return await requestPhotoLibrary(for: .readWrite)
+        case .photoLibraryAddOnly: return await requestPhotoLibrary(for: .addOnly)
+        case .location:            return await requestLocation()
+        case .speech:              return await requestSpeech()
+        case .tracking:            return await requestTracking()
+        case .motion:              return await requestMotion()
+        case .bluetooth:           return await requestBluetooth()
+        }
+    }
+
+    private static func requestContacts() async -> PermissionGrant {
+        let granted = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            CNContactStore().requestAccess(for: .contacts) { granted, _ in
+                cont.resume(returning: granted)
+            }
+        }
+        // Re-read status so limited / restricted are classified
+        // correctly; requestAccess's `granted` Bool collapses
+        // those into false.
+        return granted ? .granted : contactsStatus()
+    }
+
+    private static func requestAVCapture(for type: AVMediaType) async -> PermissionGrant {
+        let granted = await AVCaptureDevice.requestAccess(for: type)
+        return granted ? .granted : avCaptureStatus(for: type)
+    }
+
+    private static func requestMicrophone() async -> PermissionGrant {
+        // iOS 17 renamed the API to AVAudioApplication.
+        // requestRecordPermission(); pre-17 still uses the
+        // deprecated-in-17 AVAudioSession call. Route through
+        // #available so both compile cleanly.
+        if #available(iOS 17.0, *) {
+            let granted = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+                AVAudioApplication.requestRecordPermission { granted in
+                    cont.resume(returning: granted)
+                }
+            }
+            return granted ? .granted : microphoneStatus()
+        } else {
+            let granted = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+                AVAudioSession.sharedInstance().requestRecordPermission { granted in
+                    cont.resume(returning: granted)
+                }
+            }
+            return granted ? .granted : microphoneStatus()
+        }
+    }
+
+    private static func requestEventKit(for entity: EKEntityType) async -> PermissionGrant {
+        let store = EKEventStore()
+        if #available(iOS 17.0, *) {
+            do {
+                let granted: Bool
+                switch entity {
+                case .event:
+                    granted = try await store.requestFullAccessToEvents()
+                case .reminder:
+                    granted = try await store.requestFullAccessToReminders()
+                @unknown default:
+                    granted = false
+                }
+                return granted ? .granted : eventKitStatus(for: entity)
+            } catch {
+                return eventKitStatus(for: entity)
+            }
+        }
+        // Pre-iOS-17 — requestAccess is deprecated from 17 on but
+        // is the only path on 14-16. Wrap in continuation.
+        let granted = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            store.requestAccess(to: entity) { granted, _ in
+                cont.resume(returning: granted)
+            }
+        }
+        return granted ? .granted : eventKitStatus(for: entity)
+    }
+
+    private static func requestPhotoLibrary(for level: PHAccessLevel) async -> PermissionGrant {
+        let status = await PHPhotoLibrary.requestAuthorization(for: level)
+        switch status {
+        case .authorized:    return .granted
+        case .limited:       return .limited
+        case .denied:        return .permanentlyDenied
+        case .restricted:    return .restricted
+        case .notDetermined: return .denied
+        @unknown default:    return .denied
+        }
+    }
+
+    private static func requestLocation() async -> PermissionGrant {
+        // CLLocationManager doesn't have an async request API — the
+        // result arrives via delegate callback on a separate call.
+        // Use a one-shot delegate wrapped in a continuation.
+        return await _LocationAuthorizationCoordinator.requestWhenInUse()
+    }
+
+    private static func requestSpeech() async -> PermissionGrant {
+        return await withCheckedContinuation { (cont: CheckedContinuation<PermissionGrant, Never>) in
+            SFSpeechRecognizer.requestAuthorization { status in
+                let grant: PermissionGrant
+                switch status {
+                case .authorized:    grant = .granted
+                case .denied:        grant = .permanentlyDenied
+                case .restricted:    grant = .restricted
+                case .notDetermined: grant = .denied
+                @unknown default:    grant = .denied
+                }
+                cont.resume(returning: grant)
+            }
+        }
+    }
+
+    private static func requestTracking() async -> PermissionGrant {
+        guard #available(iOS 14.0, *) else { return .notAvailable }
+        let status = await ATTrackingManager.requestTrackingAuthorization()
+        switch status {
+        case .authorized:    return .granted
+        case .denied:        return .permanentlyDenied
+        case .restricted:    return .restricted
+        case .notDetermined: return .denied
+        @unknown default:    return .denied
+        }
+    }
+
+    private static func requestMotion() async -> PermissionGrant {
+        // CMMotionActivityManager has no explicit request API. The
+        // permission prompt fires the first time you call
+        // queryActivityStarting(...). After the user responds,
+        // authorizationStatus() reflects the final state.
+        let manager = CMMotionActivityManager()
+        let queue = OperationQueue.main
+        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+            // Empty time range so the query returns quickly regardless
+            // of the grant outcome — we only care about the prompt
+            // side-effect.
+            let now = Date()
+            manager.queryActivityStarting(from: now, to: now, to: queue) { _, _ in
+                cont.resume()
+            }
+        }
+        return motionStatus()
+    }
+
+    private static func requestBluetooth() async -> PermissionGrant {
+        guard #available(iOS 13.0, *) else { return .notAvailable }
+        return await _BluetoothAuthorizationCoordinator.request()
+    }
+}
+
+// MARK: - One-shot delegate coordinators
+
+/// Wraps `CLLocationManager.requestWhenInUseAuthorization()` into an
+/// async API. CoreLocation's request API fires the prompt but
+/// surfaces the result via the delegate's
+/// `locationManagerDidChangeAuthorization(_:)` callback — not via a
+/// completion handler. The coordinator retains itself until the
+/// callback fires, then releases.
+///
+/// `@unchecked Sendable`: one-shot class whose mutable state
+/// transitions only via the main-queue dispatch in `requestWhenInUse`
+/// and the main-queue delegate callback from CoreLocation. No other
+/// thread ever touches the instance. Swift's sendability checker
+/// can't prove that statically; the invariant holds by construction.
+private final class _LocationAuthorizationCoordinator:
+    NSObject, CLLocationManagerDelegate, @unchecked Sendable
+{
+    private let manager = CLLocationManager()
+    private var continuation: CheckedContinuation<PermissionGrant, Never>?
+    private var strongSelf: _LocationAuthorizationCoordinator?
+
+    static func requestWhenInUse() async -> PermissionGrant {
+        return await withCheckedContinuation { cont in
+            let coord = _LocationAuthorizationCoordinator()
+            coord.continuation = cont
+            coord.strongSelf = coord     // retain until callback
+            coord.manager.delegate = coord
+            // Must be invoked on main per CoreLocation docs.
+            DispatchQueue.main.async {
+                coord.manager.requestWhenInUseAuthorization()
+            }
+        }
+    }
+
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        // notDetermined fires once before the user responds; wait.
+        let status = manager.authorizationStatus
+        guard status != .notDetermined else { return }
+        resolve(status: status)
+    }
+
+    private func resolve(status: CLAuthorizationStatus) {
+        guard let cont = continuation else { return }
+        continuation = nil
+        let grant: PermissionGrant
+        switch status {
+        case .authorizedAlways, .authorizedWhenInUse:
+            grant = .granted
+        case .denied:        grant = .permanentlyDenied
+        case .restricted:    grant = .restricted
+        case .notDetermined: grant = .denied
+        @unknown default:    grant = .denied
+        }
+        cont.resume(returning: grant)
+        manager.delegate = nil
+        strongSelf = nil
+    }
+}
+
+/// Wraps the CoreBluetooth "instantiate CBCentralManager and wait for
+/// state" flow into an async API. CBCentralManager's init fires the
+/// permission prompt as a side-effect; the user's response surfaces
+/// via `centralManagerDidUpdateState(_:)`, at which point
+/// `CBManager.authorization` reflects the final state.
+@available(iOS 13.0, *)
+private final class _BluetoothAuthorizationCoordinator:
+    NSObject, CBCentralManagerDelegate, @unchecked Sendable
+{
+    private var manager: CBCentralManager?
+    private var continuation: CheckedContinuation<PermissionGrant, Never>?
+    private var strongSelf: _BluetoothAuthorizationCoordinator?
+
+    static func request() async -> PermissionGrant {
+        return await withCheckedContinuation { cont in
+            let coord = _BluetoothAuthorizationCoordinator()
+            coord.continuation = cont
+            coord.strongSelf = coord
+            // Create CBCentralManager with a main-queue delegate; the
+            // init call itself is what triggers the prompt.
+            coord.manager = CBCentralManager(delegate: coord, queue: nil)
+        }
+    }
+
+    func centralManagerDidUpdateState(_ central: CBCentralManager) {
+        let auth = CBManager.authorization
+        guard auth != .notDetermined else { return }
+        guard let cont = continuation else { return }
+        continuation = nil
+        let grant: PermissionGrant
+        switch auth {
+        case .allowedAlways: grant = .granted
+        case .denied:        grant = .permanentlyDenied
+        case .restricted:    grant = .restricted
+        case .notDetermined: grant = .denied
+        @unknown default:    grant = .denied
+        }
+        cont.resume(returning: grant)
+        manager = nil
+        strongSelf = nil
     }
 }

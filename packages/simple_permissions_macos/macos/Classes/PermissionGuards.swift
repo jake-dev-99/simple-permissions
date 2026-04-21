@@ -183,6 +183,35 @@ public enum PermissionGuards {
         )
     }
 
+    // MARK: Request (async)
+
+    /// Request authorization for [kind], returning the post-prompt
+    /// grant. Short-circuits without prompting when already
+    /// satisfied or in a terminal state. Mirrors the iOS module's
+    /// [PermissionGuards.requestAuthorization(for:)] semantics.
+    public static func requestAuthorization(
+        for kind: MacOSPermissionKind
+    ) async -> PermissionGrant {
+        let current = authorizationStatus(for: kind)
+        if current.isSatisfied || current.isTerminal {
+            return current
+        }
+        return await performRequest(for: kind)
+    }
+
+    /// Request authorization and throw [PermissionDeniedError]
+    /// unless the post-prompt grant is satisfied.
+    public static func requireAuthorizationGranted(
+        for kind: MacOSPermissionKind
+    ) async throws {
+        let grant = await requestAuthorization(for: kind)
+        if grant.isSatisfied { return }
+        throw PermissionDeniedError(
+            deniedPermissions: [kind.identifier],
+            message: "Operation requires \(kind.identifier) but authorization was not granted (\(grant.rawValue))."
+        )
+    }
+
     // MARK: - Notifications (async)
 
     /// True iff the app currently holds notification authorization.
@@ -211,6 +240,38 @@ public enum PermissionGuards {
         throw PermissionDeniedError(
             deniedPermissions: ["notifications"],
             message: "Operation requires notifications authorization but it is not granted."
+        )
+    }
+
+    /// Request notifications authorization, returning the post-prompt
+    /// grant. Short-circuits when already decided.
+    public static func requestNotificationsAuthorization(
+        options: UNAuthorizationOptions = [.alert, .badge, .sound]
+    ) async -> PermissionGrant {
+        let current = await notificationsStatus()
+        if current.isSatisfied || current.isTerminal {
+            return current
+        }
+        do {
+            let granted = try await UNUserNotificationCenter.current()
+                .requestAuthorization(options: options)
+            if granted { return .granted }
+            return await notificationsStatus()
+        } catch {
+            return await notificationsStatus()
+        }
+    }
+
+    /// Request notifications authorization and throw if the result
+    /// is not satisfied.
+    public static func requireNotificationsAuthorizationGranted(
+        options: UNAuthorizationOptions = [.alert, .badge, .sound]
+    ) async throws {
+        let grant = await requestNotificationsAuthorization(options: options)
+        if grant.isSatisfied { return }
+        throw PermissionDeniedError(
+            deniedPermissions: ["notifications"],
+            message: "Operation requires notifications authorization but it was not granted (\(grant.rawValue))."
         )
     }
 
@@ -308,5 +369,151 @@ public enum PermissionGuards {
         case .notDetermined: return .denied
         @unknown default:    return .denied
         }
+    }
+
+    // MARK: - Private per-framework request helpers
+
+    private static func performRequest(
+        for kind: MacOSPermissionKind
+    ) async -> PermissionGrant {
+        switch kind {
+        case .contacts:            return await requestContacts()
+        case .camera:              return await requestAVCapture(for: .video)
+        case .microphone:          return await requestAVCapture(for: .audio)
+        case .calendar:            return await requestEventKit(for: .event)
+        case .reminders:           return await requestEventKit(for: .reminder)
+        case .photoLibrary:        return await requestPhotoLibrary(addOnly: false)
+        case .photoLibraryAddOnly: return await requestPhotoLibrary(addOnly: true)
+        case .location:            return await requestLocation()
+        }
+    }
+
+    private static func requestContacts() async -> PermissionGrant {
+        let granted = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            CNContactStore().requestAccess(for: .contacts) { granted, _ in
+                cont.resume(returning: granted)
+            }
+        }
+        return granted ? .granted : contactsStatus()
+    }
+
+    private static func requestAVCapture(for type: AVMediaType) async -> PermissionGrant {
+        let granted = await AVCaptureDevice.requestAccess(for: type)
+        return granted ? .granted : avCaptureStatus(for: type)
+    }
+
+    private static func requestEventKit(for entity: EKEntityType) async -> PermissionGrant {
+        let store = EKEventStore()
+        if #available(macOS 14.0, *) {
+            do {
+                let granted: Bool
+                switch entity {
+                case .event:
+                    granted = try await store.requestFullAccessToEvents()
+                case .reminder:
+                    granted = try await store.requestFullAccessToReminders()
+                @unknown default:
+                    granted = false
+                }
+                return granted ? .granted : eventKitStatus(for: entity)
+            } catch {
+                return eventKitStatus(for: entity)
+            }
+        }
+        // Pre-macOS-14 — requestAccess is the only path.
+        let granted = await withCheckedContinuation { (cont: CheckedContinuation<Bool, Never>) in
+            store.requestAccess(to: entity) { granted, _ in
+                cont.resume(returning: granted)
+            }
+        }
+        return granted ? .granted : eventKitStatus(for: entity)
+    }
+
+    private static func requestPhotoLibrary(addOnly: Bool) async -> PermissionGrant {
+        // PHPhotoLibrary.requestAuthorization(for:) is macOS 11+.
+        // Pre-11 has only the no-arg requestAuthorization and no
+        // addOnly concept.
+        if #available(macOS 11.0, *) {
+            let level: PHAccessLevel = addOnly ? .addOnly : .readWrite
+            let status = await PHPhotoLibrary.requestAuthorization(for: level)
+            switch status {
+            case .authorized:    return .granted
+            case .limited:       return .limited
+            case .denied:        return .permanentlyDenied
+            case .restricted:    return .restricted
+            case .notDetermined: return .denied
+            @unknown default:    return .denied
+            }
+        }
+        if addOnly { return .notApplicable }
+        let status = await withCheckedContinuation { (cont: CheckedContinuation<PHAuthorizationStatus, Never>) in
+            PHPhotoLibrary.requestAuthorization { status in
+                cont.resume(returning: status)
+            }
+        }
+        switch status {
+        case .authorized:    return .granted
+        case .limited:       return .limited
+        case .denied:        return .permanentlyDenied
+        case .restricted:    return .restricted
+        case .notDetermined: return .denied
+        @unknown default:    return .denied
+        }
+    }
+
+    private static func requestLocation() async -> PermissionGrant {
+        return await _LocationAuthorizationCoordinator.requestAlways()
+    }
+}
+
+// MARK: - One-shot delegate coordinator
+
+/// Wraps `CLLocationManager.requestAlwaysAuthorization()` into an
+/// async API. CoreLocation on macOS has no when-in-use equivalent;
+/// `requestAlways` is the request path. Result surfaces via the
+/// delegate callback, so we retain a one-shot coordinator until the
+/// callback fires.
+///
+/// `@unchecked Sendable`: one-shot class, state transitions only via
+/// the main-queue delegate callback. Invariant holds by construction.
+private final class _LocationAuthorizationCoordinator:
+    NSObject, CLLocationManagerDelegate, @unchecked Sendable
+{
+    private let manager = CLLocationManager()
+    private var continuation: CheckedContinuation<PermissionGrant, Never>?
+    private var strongSelf: _LocationAuthorizationCoordinator?
+
+    static func requestAlways() async -> PermissionGrant {
+        return await withCheckedContinuation { cont in
+            let coord = _LocationAuthorizationCoordinator()
+            coord.continuation = cont
+            coord.strongSelf = coord
+            coord.manager.delegate = coord
+            coord.manager.requestAlwaysAuthorization()
+        }
+    }
+
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status: CLAuthorizationStatus
+        if #available(macOS 11.0, *) {
+            status = manager.authorizationStatus
+        } else {
+            status = CLLocationManager.authorizationStatus()
+        }
+        guard status != .notDetermined else { return }
+        guard let cont = continuation else { return }
+        continuation = nil
+        let grant: PermissionGrant
+        switch status {
+        case .authorizedAlways, .authorized, .authorizedWhenInUse:
+            grant = .granted
+        case .denied:        grant = .permanentlyDenied
+        case .restricted:    grant = .restricted
+        case .notDetermined: grant = .denied
+        @unknown default:    grant = .denied
+        }
+        cont.resume(returning: grant)
+        self.manager.delegate = nil
+        strongSelf = nil
     }
 }
