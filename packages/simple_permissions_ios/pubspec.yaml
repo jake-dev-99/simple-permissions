@@ -1,6 +1,6 @@
 name: simple_permissions_ios
 description: iOS implementation for the simple_permissions federated plugin.
-version: 1.2.0
+version: 1.2.1
 homepage: https://github.com/simplezen/simple-permissions
 repository: https://github.com/simplezen/simple-permissions
 issue_tracker: https://github.com/simplezen/simple-permissions/issues
