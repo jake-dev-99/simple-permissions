@@ -54,6 +54,14 @@ class _Adapter extends WidgetsBindingObserver {
 ///
 /// Create via [SimplePermissionsNative.instance.observe]; dispose
 /// when done to detach the lifecycle listener and close the stream.
+///
+/// Forgetting [dispose] is a bug — the lifecycle adapter and stream
+/// controller leak until the app exits. As a safety net, the observer
+/// registers a [Finalizer] that detaches the adapter and closes the
+/// controller when the observer is garbage-collected; in debug builds
+/// a warning is printed so the missing [dispose] is visible. To make
+/// GC possible, the lifecycle hook holds only a [WeakReference] to
+/// the observer — otherwise the binding would keep it alive forever.
 class PermissionObserver {
   PermissionObserver._({
     required this.permissions,
@@ -61,8 +69,33 @@ class PermissionObserver {
     PermissionObserverLifecycle? lifecycle,
   }) : _platform = platform {
     final source = lifecycle ?? WidgetsBindingLifecycle();
-    _detach = source.attach(_onResumed);
+    // Weak self-reference so the lifecycle source doesn't pin this
+    // observer in memory; without this, the finalizer below could
+    // never run because WidgetsBinding -> adapter -> closure would
+    // keep a strong ref via `_onResumed`.
+    final weakSelf = WeakReference(this);
+    _detach = source.attach(() {
+      final self = weakSelf.target;
+      if (self != null) self._onResumed();
+    });
+    _cleanup = _ObserverCleanup(_detach, _controller);
+    _finalizer.attach(this, _cleanup, detach: this);
   }
+
+  static final Finalizer<_ObserverCleanup> _finalizer =
+      Finalizer<_ObserverCleanup>((cleanup) {
+    if (cleanup.ran) return;
+    assert(() {
+      debugPrint(
+        '[simple_permissions] PermissionObserver was garbage-collected '
+        'without dispose() — the lifecycle listener and stream '
+        'controller have been cleaned up automatically. Call '
+        'observer.dispose() explicitly to avoid this warning.',
+      );
+      return true;
+    }());
+    cleanup.run();
+  });
 
   /// The permissions (and roles, since [AppRole] extends [Permission])
   /// being observed. Immutable for the observer's lifetime — to watch
@@ -71,6 +104,7 @@ class PermissionObserver {
 
   final SimplePermissionsPlatform _platform;
   late final VoidCallback _detach;
+  late final _ObserverCleanup _cleanup;
 
   final StreamController<PermissionResult> _controller =
       StreamController<PermissionResult>.broadcast();
@@ -157,8 +191,30 @@ class PermissionObserver {
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
+    _finalizer.detach(this);
+    _cleanup.run();
+    await _controller.done;
+  }
+}
+
+/// Holder passed to [PermissionObserver._finalizer]. Deliberately
+/// avoids referencing [PermissionObserver] so the observer remains
+/// finalizable.
+class _ObserverCleanup {
+  _ObserverCleanup(this._detach, this._controller);
+  final VoidCallback _detach;
+  final StreamController<PermissionResult> _controller;
+  bool ran = false;
+
+  void run() {
+    if (ran) return;
+    ran = true;
     _detach();
-    await _controller.close();
+    if (!_controller.isClosed) {
+      // Fire and forget — we only need the close to be scheduled.
+      // ignore: discarded_futures
+      _controller.close();
+    }
   }
 }
 

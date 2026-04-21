@@ -70,13 +70,20 @@ class _PermissionsDemoState extends State<PermissionsDemo> {
   // ---------------------------------------------------------------------------
 
   Future<void> _batchRequest() async {
+    // Log the call kickoff BEFORE the await. On macOS/iOS simulator
+    // under CI the system prompt can't be dismissed, so the await
+    // blocks indefinitely and no result-dependent log line ever
+    // fires — which used to make the integration smoke test fail
+    // even though the bridge call itself was healthy. Emitting the
+    // header first lets tests verify the call reached the bridge
+    // without gating on grant outcome.
+    _addLog('requestAll(camera, mic, location):');
     final result = await _perms.requestAll(const [
       CameraAccess(),
       RecordAudio(),
       FineLocation(),
     ]);
 
-    _addLog('requestAll(camera, mic, location):');
     _addLog('  isFullyGranted = ${result.isFullyGranted}');
 
     if (result.hasDenial) {
@@ -119,6 +126,40 @@ class _PermissionsDemoState extends State<PermissionsDemo> {
     final grant = await _perms.request(permission);
     _addLog('request(VersionedPermission.images()) = ${grant.name}');
     _addLog('  resolved identifier = ${permission.identifier}');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Gate helpers — ensureGranted + guard
+  // ---------------------------------------------------------------------------
+
+  /// Demonstrates `guard`: run an action only if the permission is granted.
+  /// Returns null when the user denies, so UX branches cleanly.
+  Future<void> _guardContacts() async {
+    final count = await _perms.guard(
+      const ReadContacts(),
+      () async {
+        // Stand-in for a real "read contacts" call from a sibling plugin
+        // like simple_query — demo uses a fixed number so the log stays
+        // deterministic.
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+        return 42;
+      },
+    );
+    if (count == null) {
+      _addLog('guard(ReadContacts) → skipped (permission not granted)');
+    } else {
+      _addLog('guard(ReadContacts) → ran, count=$count');
+    }
+  }
+
+  /// Demonstrates `ensureGranted`: caller inspects the returned grant to
+  /// branch on denial mode (e.g. route to settings on permanent denial).
+  Future<void> _ensureCamera() async {
+    final grant = await _perms.ensureGranted(const CameraAccess());
+    _addLog('ensureGranted(Camera) = ${grant.name}');
+    if (grant == PermissionGrant.permanentlyDenied) {
+      _addLog('  → open Settings to grant');
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -216,6 +257,31 @@ class _PermissionsDemoState extends State<PermissionsDemo> {
                       key: const Key('versioned-images'),
                       onPressed: _requestVersioned,
                       child: const Text('Versioned Images'),
+                    ),
+                  ],
+                ),
+
+                const Divider(height: 24),
+
+                // Gate helpers
+                Text(
+                  'Gate helpers',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    FilledButton.tonal(
+                      key: const Key('guard-contacts'),
+                      onPressed: _guardContacts,
+                      child: const Text('guard(Contacts)'),
+                    ),
+                    FilledButton.tonal(
+                      key: const Key('ensure-camera'),
+                      onPressed: _ensureCamera,
+                      child: const Text('ensureGranted(Camera)'),
                     ),
                   ],
                 ),

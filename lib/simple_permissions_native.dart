@@ -141,6 +141,100 @@ class SimplePermissionsNative {
     return requestAll(intention.permissions);
   }
 
+  /// Ensure [permission] is granted, prompting once if it isn't.
+  ///
+  /// Semantics:
+  /// 1. Calls [check]. If the grant is already [PermissionGrantStatus.isSatisfied]
+  ///    (granted / limited / provisional), returns it without prompting.
+  /// 2. If the grant is [PermissionGrantStatus.isTerminal] (permanently
+  ///    denied, restricted, or unsupported on this platform / OS), returns
+  ///    it as-is — prompting here would either be a no-op or surface a
+  ///    cryptic native error.
+  /// 3. Otherwise calls [request] and returns the post-request grant.
+  ///
+  /// Use this when you want "make sure the user has been asked, then tell
+  /// me where we ended up." When you need to branch on the specific
+  /// terminal mode (e.g. route to settings on [PermissionGrant.permanentlyDenied]),
+  /// inspect the returned grant — the facade intentionally doesn't make
+  /// that policy decision.
+  Future<PermissionGrant> ensureGranted(Permission permission) async {
+    final current = await check(permission);
+    if (current.isSatisfied || current.isTerminal) return current;
+    return request(permission);
+  }
+
+  /// Batch form of [ensureGranted]. Permissions already satisfied or in
+  /// a terminal state are pulled from the initial [checkAll]; only the
+  /// prompt-worthy ones are forwarded to [requestAll] in a single
+  /// native round-trip. Avoids re-prompting permissions the user has
+  /// permanently denied.
+  Future<PermissionResult> ensureGrantedAll(
+      List<Permission> permissions) async {
+    final current = await checkAll(permissions);
+    final pending = <Permission>[
+      for (final permission in permissions)
+        if (!(current.permissions[permission]?.isSatisfied ?? false) &&
+            !(current.permissions[permission]?.isTerminal ?? false))
+          permission,
+    ];
+    if (pending.isEmpty) return current;
+
+    final requested = await requestAll(pending);
+    // Overlay the request results on top of the check snapshot so
+    // non-pending permissions keep their original grant.
+    return PermissionResult({
+      for (final permission in permissions)
+        permission: requested.permissions[permission] ??
+            current.permissions[permission] ??
+            PermissionGrant.notApplicable,
+    });
+  }
+
+  /// Intention-shaped sugar over [ensureGrantedAll].
+  Future<PermissionResult> ensureIntention(Intention intention) =>
+      ensureGrantedAll(intention.permissions);
+
+  /// Run [action] iff [permission] becomes satisfied. Returns the
+  /// action's value on success; returns `null` if the permission wasn't
+  /// granted. Use [ensureGranted] if you need to distinguish *why* it
+  /// wasn't granted (e.g. to route to settings).
+  ///
+  /// ```dart
+  /// final contacts = await SimplePermissionsNative.instance.guard(
+  ///   const ReadContacts(),
+  ///   () => _fetchContacts(),
+  /// );
+  /// if (contacts == null) {
+  ///   // User denied; surface the appropriate UX.
+  /// }
+  /// ```
+  Future<T?> guard<T>(
+    Permission permission,
+    Future<T> Function() action,
+  ) async {
+    final grant = await ensureGranted(permission);
+    if (!grant.isSatisfied) return null;
+    return action();
+  }
+
+  /// Batch form of [guard]. Runs [action] only when every permission in
+  /// [permissions] ends up satisfied.
+  Future<T?> guardAll<T>(
+    List<Permission> permissions,
+    Future<T> Function() action,
+  ) async {
+    final result = await ensureGrantedAll(permissions);
+    if (!result.isFullyGranted) return null;
+    return action();
+  }
+
+  /// Intention-shaped sugar over [guardAll].
+  Future<T?> guardIntention<T>(
+    Intention intention,
+    Future<T> Function() action,
+  ) =>
+      guardAll(intention.permissions, action);
+
   /// Open the system settings page for this app. Use when a permission
   /// is [PermissionGrant.permanentlyDenied] and [request] will no
   /// longer surface a prompt.

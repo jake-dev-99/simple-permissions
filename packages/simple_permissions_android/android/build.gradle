@@ -2,7 +2,9 @@ group = "io.simplezen.simple_permissions_android"
 version = "1.0-SNAPSHOT"
 
 buildscript {
-    ext.kotlin_version = "1.8.22"
+    // Kotlin 2.1.21 — Flutter's tooling deprecates <2.1.0, and 1.8.x
+    // tops out at JVM target 19 while compileOptions asks for 21.
+    ext.kotlin_version = "2.1.21"
     repositories {
         google()
         mavenCentral()
@@ -31,15 +33,15 @@ apply plugin: "kotlin-android"
 android {
     namespace = "io.simplezen.simple_permissions_android"
 
-    compileSdk = 35
+    compileSdk = 36
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17
+        jvmTarget = JavaVersion.VERSION_21.toString()
     }
 
     sourceSets {
