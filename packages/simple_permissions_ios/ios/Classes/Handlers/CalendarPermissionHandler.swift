@@ -1,5 +1,9 @@
 import EventKit
 
+/// Calendar / reminders authorization adapter. Parameterized on
+/// `EKEntityType` at construction so one class serves both the
+/// calendar (`event`) and reminders (`reminder`) registrations —
+/// the entity type maps 1:1 to the matching `ApplePermissionKind`.
 final class CalendarPermissionHandler: PermissionHandler {
   let entityType: EKEntityType
 
@@ -9,64 +13,28 @@ final class CalendarPermissionHandler: PermissionHandler {
 
   var isSupported: Bool { true }
 
-  func check(completion: @escaping (String) -> Void) {
-    completion(mapCalendarStatus(EKEventStore.authorizationStatus(for: entityType)))
-  }
-
-  func request(completion: @escaping (String) -> Void) {
-    let status = EKEventStore.authorizationStatus(for: entityType)
-    switch status {
-    case .authorized, .fullAccess:
-      completion(GrantWire.granted.rawValue)
-    case .writeOnly:
-      completion(GrantWire.limited.rawValue)
-    case .denied:
-      completion(GrantWire.permanentlyDenied.rawValue)
-    case .restricted:
-      completion(GrantWire.restricted.rawValue)
-    case .notDetermined:
-      if #available(iOS 17.0, *) {
-        let store = EKEventStore()
-        switch entityType {
-        case .event:
-          store.requestFullAccessToEvents { granted, _ in
-            ensureMainThread {
-              completion(granted ? GrantWire.granted.rawValue : GrantWire.denied.rawValue)
-            }
-          }
-        case .reminder:
-          store.requestFullAccessToReminders { granted, _ in
-            ensureMainThread {
-              completion(granted ? GrantWire.granted.rawValue : GrantWire.denied.rawValue)
-            }
-          }
-        @unknown default:
-          store.requestAccess(to: entityType) { granted, _ in
-            ensureMainThread {
-              completion(granted ? GrantWire.granted.rawValue : GrantWire.denied.rawValue)
-            }
-          }
-        }
-      } else {
-        EKEventStore().requestAccess(to: entityType) { granted, _ in
-          ensureMainThread {
-            completion(granted ? GrantWire.granted.rawValue : GrantWire.denied.rawValue)
-          }
-        }
-      }
-    @unknown default:
-      completion(GrantWire.denied.rawValue)
+  /// The `ApplePermissionKind` for this handler's entity type.
+  /// `.event` → `.calendar`, `.reminder` → `.reminders`. Any future
+  /// entity type would need a matching kind added here; until then
+  /// fall back to `.calendar` which mirrors the pre-1.8 handler
+  /// behavior for unknown entity types.
+  private var kind: ApplePermissionKind {
+    switch entityType {
+    case .event:    return .calendar
+    case .reminder: return .reminders
+    @unknown default: return .calendar
     }
   }
 
-  private func mapCalendarStatus(_ status: EKAuthorizationStatus) -> String {
-    switch status {
-    case .authorized, .fullAccess: return GrantWire.granted.rawValue
-    case .writeOnly: return GrantWire.limited.rawValue
-    case .notDetermined: return GrantWire.denied.rawValue
-    case .denied: return GrantWire.permanentlyDenied.rawValue
-    case .restricted: return GrantWire.restricted.rawValue
-    @unknown default: return GrantWire.denied.rawValue
+  func check(completion: @escaping (String) -> Void) {
+    completion(PermissionGuards.authorizationStatus(for: kind).rawValue)
+  }
+
+  func request(completion: @escaping (String) -> Void) {
+    let kind = self.kind
+    Task {
+      let grant = await PermissionGuards.requestAuthorization(for: kind)
+      ensureMainThread { completion(grant.rawValue) }
     }
   }
 }
