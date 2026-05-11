@@ -1,9 +1,10 @@
-import CoreBluetooth
+import Foundation
 
-final class BluetoothPermissionHandler: NSObject, PermissionHandler, CBCentralManagerDelegate {
-  private var centralManager: CBCentralManager?
-  private var pendingCompletion: ((String) -> Void)?
-
+/// Bluetooth authorization adapter. All framework interaction —
+/// status query, delegate dance for the request-on-first-init
+/// prompt — lives in `PermissionGuards`; this handler is a thin
+/// registry adapter.
+final class BluetoothPermissionHandler: PermissionHandler {
   var isSupported: Bool {
     if #available(iOS 13.0, *) {
       return true
@@ -12,60 +13,13 @@ final class BluetoothPermissionHandler: NSObject, PermissionHandler, CBCentralMa
   }
 
   func check(completion: @escaping (String) -> Void) {
-    guard #available(iOS 13.0, *) else {
-      completion(GrantWire.notAvailable.rawValue)
-      return
-    }
-    completion(mapBluetoothStatus(CBManager.authorization))
+    completion(PermissionGuards.authorizationStatus(for: .bluetooth).rawValue)
   }
 
   func request(completion: @escaping (String) -> Void) {
-    guard #available(iOS 13.0, *) else {
-      completion(GrantWire.notAvailable.rawValue)
-      return
-    }
-
-    switch CBManager.authorization {
-    case .allowedAlways:
-      completion(GrantWire.granted.rawValue)
-    case .denied:
-      completion(GrantWire.permanentlyDenied.rawValue)
-    case .restricted:
-      completion(GrantWire.restricted.rawValue)
-    case .notDetermined:
-      ensureMainThread {
-        self.pendingCompletion = completion
-        self.centralManager = CBCentralManager(delegate: self, queue: nil)
-      }
-    @unknown default:
-      completion(GrantWire.denied.rawValue)
-    }
-  }
-
-  func centralManagerDidUpdateState(_ central: CBCentralManager) {
-    guard let completion = pendingCompletion else { return }
-    guard #available(iOS 13.0, *) else {
-      completion(GrantWire.notAvailable.rawValue)
-      pendingCompletion = nil
-      centralManager = nil
-      return
-    }
-
-    let status = CBManager.authorization
-    guard status != .notDetermined else { return }
-    completion(mapBluetoothStatus(status))
-    pendingCompletion = nil
-    centralManager = nil
-  }
-
-  @available(iOS 13.0, *)
-  private func mapBluetoothStatus(_ status: CBManagerAuthorization) -> String {
-    switch status {
-    case .allowedAlways: return GrantWire.granted.rawValue
-    case .denied: return GrantWire.permanentlyDenied.rawValue
-    case .restricted: return GrantWire.restricted.rawValue
-    case .notDetermined: return GrantWire.denied.rawValue
-    @unknown default: return GrantWire.denied.rawValue
+    Task {
+      let grant = await PermissionGuards.requestAuthorization(for: .bluetooth)
+      ensureMainThread { completion(grant.rawValue) }
     }
   }
 }

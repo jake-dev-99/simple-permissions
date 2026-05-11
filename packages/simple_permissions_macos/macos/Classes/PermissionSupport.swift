@@ -1,22 +1,21 @@
 import Foundation
 
-// MARK: - Permission Grant Wire Values
-
-/// Wire values sent back to Dart, matching PermissionGrant enum names.
-enum GrantWire: String {
-  case granted
-  case denied
-  case permanentlyDenied
-  case restricted
-  case limited
-  case notApplicable
-  case notAvailable
-  case provisional
-}
-
 // MARK: - Permission Handler Protocol
 
 /// All macOS permission handlers conform to this protocol.
+///
+/// Handlers are thin adapters between the registry (string
+/// identifiers from the Dart side, via Pigeon) and `PermissionGuards`.
+/// Each handler wires a specific permission identifier to the
+/// corresponding `MacOSPermissionKind`; the actual framework
+/// interaction — status read, request prompt, delegate dance —
+/// lives in `PermissionGuards.swift`.
+///
+/// The wire format on the completion (`String`) matches
+/// `PermissionGrant.rawValue`: `"granted"`, `"denied"`,
+/// `"permanentlyDenied"`, `"restricted"`, `"limited"`,
+/// `"notApplicable"`, `"notAvailable"`, `"provisional"`. Handlers
+/// produce these by calling `PermissionGuards.*.rawValue`.
 protocol PermissionHandler {
   func check(completion: @escaping (String) -> Void)
   func request(completion: @escaping (String) -> Void)

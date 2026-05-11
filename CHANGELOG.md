@@ -1,3 +1,106 @@
+## 1.8.0
+
+### Changed — PermissionGuards re-framed as a developer-facing helper
+
+The 1.7.0 notes framed Apple `PermissionGuards` as defense-in-depth for **sibling Flutter plugins** using a "three-layer responsibility model." That framing is superseded: sibling plugins should stay independent and **not** embed `simple_permissions_native`. Client-app developers are responsible for permission management, typically via `SimplePermissionsNative.instance.ensureGranted(...)` on the Dart side, before invoking any sibling-plugin API.
+
+`PermissionGuards` itself continues to exist — now scoped to **your own native iOS / macOS / Android code** (app extensions, native UI, `AppDelegate` work, native modules you own). The API is strictly additive from 1.7 to 1.8; the rewrite is documentation + scope, not code deletion.
+
+`docs/INTEGRATION_GUIDE.md` fully rewritten for the new framing.
+
+### Added — Apple `PermissionGrant` + `authorizationStatus(for:)`
+
+Swift-side mirror of Dart's 8-case `PermissionGrant` enum with the same `isSatisfied` / `isDenied` / `isUnsupported` / `isTerminal` predicates. Raw string values (`"granted"`, `"denied"`, …) match the Dart wire format 1:1.
+
+- `PermissionGuards.authorizationStatus(for:) -> PermissionGrant` — primary new query; lets callers distinguish denied vs permanentlyDenied vs restricted vs limited vs notAvailable instead of collapsing into `Bool`.
+- `isAuthorized(for:)` rebuilt on top: `authorizationStatus(for: kind).isSatisfied`. Existing callers unchanged.
+- `notificationsStatus() async -> PermissionGrant` for parity.
+
+iOS and macOS modules get identical API. Pre-iOS-13 bluetooth and pre-iOS-14 tracking now report `.notAvailable` explicitly (previously implicit `.granted`). iOS 18+ `CNAuthorizationStatus.limited` and iOS-17+ `EKAuthorizationStatus.fullAccess` / `.writeOnly` mapped to appropriate grants.
+
+### Added — Apple async request helpers
+
+Sync check + async request, mirrored on iOS and macOS.
+
+- `PermissionGuards.requestAuthorization(for:) async -> PermissionGrant` — triggers the system prompt (on first use) and returns the post-prompt grant. Short-circuits without prompting when already satisfied or in a terminal state.
+- `PermissionGuards.requireAuthorizationGranted(for:) async throws` — throwing counterpart.
+- `PermissionGuards.requestNotificationsAuthorization(options:) async -> PermissionGrant` — notifications-specific (async-only framework API).
+- `PermissionGuards.requireNotificationsAuthorizationGranted(options:) async throws` — throwing notifications counterpart.
+
+Per-kind wiring uses each framework's native async API where one exists (iOS 14+ photo library, iOS 15+ EventKit full-access, iOS 14+ ATTrackingManager), falls back to completion-wrapping via `withCheckedContinuation` on older OS versions. Delegate-based frameworks (CoreLocation, CoreBluetooth) use one-shot coordinator classes marked `@unchecked Sendable` with a documented invariant.
+
+### Added — `.health(HKObjectType)` case (iOS only)
+
+HealthKit gating. Associated-value enum case so callers supply the specific `HKObjectType` they need:
+
+```swift
+let stepType = HKObjectType.quantityType(forIdentifier: .stepCount)!
+try await PermissionGuards.requireAuthorizationGranted(for: .health(stepType))
+```
+
+Apple privacy caveat documented inline: `HKHealthStore.authorizationStatus(for:)` only reflects write authorization — read is opaque by design. Request path asks for both share (`HKSampleType` only) and read where the type supports it, so the user sees one consolidated prompt. iOS 15+ uses the native async API; 14 falls back to the completion-based variant.
+
+macOS deliberately excluded from this stream — HealthKit on macOS is rare; revisit if a macOS consumer materializes.
+
+### Added — XCTest suite for PermissionGuards
+
+`example/ios/RunnerTests/RunnerTests.swift` gets five test classes / ~20 tests covering the deterministic parts of PermissionGuards:
+
+- `PermissionGrantTests` — rawValue wire-format stability, predicate matrices, mutual exclusivity, exactly-one-category coverage across all 8 cases.
+- `ApplePermissionKindTests` — identifier stability for all zero-arg cases + `.health` formatting.
+- `PermissionDeniedErrorTests` — construction, description, order preservation.
+- `PermissionGuardsRequireTests` — empty-collection edge cases (requireAny throws, requireAll vacuously succeeds), error shapes.
+- `AuthorizationStatusTests` — every kind round-trips through PermissionGrant rawValue, invariant that `isAuthorized` ≡ `authorizationStatus.isSatisfied`, HealthKit-unavailable graceful handling.
+
+Locally-runnable via `xcodebuild test -scheme Runner`. CI wiring is a separate future-work item.
+
+### Package versions
+
+- `simple_permissions_native` 1.7.0 → 1.8.0
+- `simple_permissions_ios` 1.3.0 → 1.4.0 (podspec aligned)
+- `simple_permissions_macos` 1.3.0 → 1.4.0 (podspec aligned)
+- Android + platform-interface + web unchanged.
+
+### Explicitly deferred
+
+- macOS `.health` case — no consumer. Revisit when one exists.
+- Simulator-based integration tests via `xcrun simctl privacy` — future work.
+- CI wiring for the XCTest target — depends on macOS runner minutes budget.
+
+## 1.7.0
+
+### Added — Apple native assertions (`PermissionGuards` for iOS + macOS)
+
+Swift companion to Kotlin's `PermissionGuards` (landed 1.6.0). Sibling Flutter plugins with Swift code that invokes permission-gated Apple frameworks can now throw a clear library-specific domain error instead of leaking whatever opaque status the framework returns on unauthorized.
+
+**iOS** — `simple_permissions_ios` 1.3.0 (+ podspec 1.3.0):
+
+- `ApplePermissionKind` enum — 12 cases: `.contacts`, `.camera`, `.microphone`, `.calendar`, `.reminders`, `.photoLibrary`, `.photoLibraryAddOnly`, `.location`, `.speech`, `.tracking`, `.motion`, `.bluetooth`. Each delegates to the exact framework call already in use by the corresponding `*PermissionHandler.swift`.
+- `PermissionGuards.isAuthorized(for:)` — read-only `Bool`.
+- `PermissionGuards.requireAuthorized(for:)` / `requireAnyAuthorized(for:)` / `requireAllAuthorized(for:)` — throw `PermissionDeniedError` with `.deniedPermissions: [String]` listing the missing kinds (`Any` lists all when all deny; `All` lists only the missing subset).
+- `PermissionGuards.isNotificationsAuthorized()` / `requireNotificationsAuthorized()` — `async` variants, because `UNUserNotificationCenter.getNotificationSettings` is callback-only. Treats `.authorized`, `.provisional`, `.ephemeral` as authorized (matches the Dart `PermissionGrantStatus.isSatisfied` mapping).
+- `PermissionDeniedError: Error, CustomStringConvertible` — Apple analog of Kotlin's `PermissionDeniedException`.
+
+**macOS** — `simple_permissions_macos` 1.3.0 (+ podspec 1.3.0):
+
+- `MacOSPermissionKind` enum — 8-case subset: `.contacts`, `.camera`, `.microphone`, `.calendar`, `.reminders`, `.photoLibrary`, `.photoLibraryAddOnly`, `.location`.
+- Same helper shape as iOS (`isAuthorized` / `require*` / async notifications / `PermissionDeniedError`).
+- Platform-specific implementations where Apple's APIs diverge: microphone uses `AVCaptureDevice.authorizationStatus(for: .audio)` (iOS uses `AVAudioSession.recordPermission`); location and photo library have `#available(macOS 11.0, *)` fallbacks to the pre-11 class-method shapes.
+
+### Integration guide
+
+- Replaced the placeholder iOS/macOS section in `docs/INTEGRATION_GUIDE.md` with a worked example using the new helpers. Includes a covered-kinds list per platform, a framework-contract → helper picker table, the `Info.plist` usage-description note (Apple equivalent of Android's `<service android:permission>` split), and one-line adoption instructions (`s.dependency 'simple_permissions_ios'` + `import simple_permissions_ios`).
+- Shippable-plugin checklist updated with the Swift-side items and the Info.plist responsibility split.
+
+### Explicitly deferred
+
+- **`.health` — HealthKit gating**. `HKHealthStore.authorizationStatus(for:)` is parameterized by `HKObjectType`, so a single case can't carry the type. Sibling plugins needing HealthKit call the framework directly with a domain wrapper. Will grow a case when a concrete `simple-health` plugin materializes.
+- **XCTest coverage for Swift guards**. The iOS and macOS plugin modules have never had a test target; standing one up is scoped out of this PR. Sibling-plugin adoption (simple-telephony iOS first) is the primary verification.
+
+### No Dart changes
+
+Purely additive native API. No platform-interface changes, no facade changes; `simple_permissions_native` bumps from 1.6.0 → 1.7.0 as the version-bundle convention.
+
 ## 1.6.0
 
 ### Added — runtime gate helpers (Dart facade)

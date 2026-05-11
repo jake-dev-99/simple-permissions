@@ -70,6 +70,37 @@ Each package's version advances independently. A single release
 event can tag more than one package; tag each separately and the
 matching matrix jobs run in parallel.
 
+## CI secrets & rulesets
+
+`auto-tag.yml` has three external dependencies that aren't visible
+from reading the workflow file. If any drifts, auto-tag silently
+starts failing with `GH013` rule-violation rejections on every merge
+to `main`.
+
+1. **Deploy key (write)**. Repo Settings → Deploy keys has an entry
+   titled "auto-tag workflow (write)" with *Allow write access*
+   checked. This is the public half of the ed25519 pair used by the
+   workflow's SSH push.
+2. **`AUTO_TAG_DEPLOY_KEY` secret**. Repo Settings → Secrets →
+   Actions holds the private half of the same key. The workflow's
+   checkout step loads it into ssh-agent via `ssh-key:`.
+3. **`main` ruleset bypass**. Repo Settings → Rules → the `main`
+   ruleset has **Deploy keys** in its Bypass list, which exempts
+   deploy-key-authenticated pushes from the PR-required and
+   signed-commits rules.
+
+Why all three: `main` requires PRs + signed commits for every push,
+but the workflow needs to commit pubspec bumps and push tags after a
+release merge. `github-actions[bot]` (the identity behind the
+default `GITHUB_TOKEN`) isn't a bypass-able actor on GitHub's
+picker. Deploy keys are, so we push as the key instead.
+
+To rotate: generate a new ed25519 pair, upload the public half as a
+new deploy key with write access (delete the old entry), update the
+`AUTO_TAG_DEPLOY_KEY` secret with the new private half. The bypass
+list entry stays — it's scoped to "any deploy key", not a specific
+one.
+
 ## One-time pub.dev setup (per package)
 
 Each federated package has to be configured on pub.dev's

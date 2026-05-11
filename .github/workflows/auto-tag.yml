@@ -64,10 +64,29 @@ jobs:
           # Full history so `git log` / `git tag --list` see
           # everything we need.
           fetch-depth: 0
-          # Use a token the `git push` step can actually use.
-          # The default GITHUB_TOKEN is fine if branch
-          # protection on `main` allows the GitHub App's pushes.
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # Authenticate as the repo's auto-tag deploy key, NOT the
+          # default GITHUB_TOKEN. Rationale: `main` has a ruleset
+          # requiring PRs + signed commits for every push. The bot
+          # identity that backs GITHUB_TOKEN (`github-actions[bot]`)
+          # is not a bypass-able actor on GitHub's ruleset picker, so
+          # its pushes get rejected with GH013. A deploy key *is* in
+          # the bypass list, so pushes authenticated via SSH with
+          # this key skip both rules.
+          #
+          # Setup (see docs/RELEASE.md "CI secrets & rulesets"):
+          #   1. Repo Settings → Deploy keys: public key with write
+          #      access.
+          #   2. Repo Settings → Secrets → Actions: private key stored
+          #      as AUTO_TAG_DEPLOY_KEY.
+          #   3. Repo Settings → Rules → main ruleset → Bypass list:
+          #      "Deploy keys" present.
+          #
+          # `ssh-key` makes checkout load the key into ssh-agent and
+          # clone via SSH; subsequent `git push` inherits that auth
+          # automatically. The workflow_dispatch call further down
+          # stays on GITHUB_TOKEN (it's an API call, not a push —
+          # doesn't touch `main` and doesn't need the bypass).
+          ssh-key: ${{ secrets.AUTO_TAG_DEPLOY_KEY }}
 
       - name: Configure git identity
         run: |

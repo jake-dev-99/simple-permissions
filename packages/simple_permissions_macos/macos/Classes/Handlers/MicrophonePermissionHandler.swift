@@ -1,39 +1,16 @@
-import AVFoundation
+import Foundation
 
 final class MicrophonePermissionHandler: PermissionHandler {
   var isSupported: Bool { true }
 
   func check(completion: @escaping (String) -> Void) {
-    completion(mapAVStatus(AVCaptureDevice.authorizationStatus(for: .audio)))
+    completion(PermissionGuards.authorizationStatus(for: .microphone).rawValue)
   }
 
   func request(completion: @escaping (String) -> Void) {
-    let status = AVCaptureDevice.authorizationStatus(for: .audio)
-    switch status {
-    case .authorized:
-      completion(GrantWire.granted.rawValue)
-    case .denied:
-      completion(GrantWire.permanentlyDenied.rawValue)
-    case .restricted:
-      completion(GrantWire.restricted.rawValue)
-    case .notDetermined:
-      AVCaptureDevice.requestAccess(for: .audio) { granted in
-        ensureMainThread {
-          completion(granted ? GrantWire.granted.rawValue : GrantWire.denied.rawValue)
-        }
-      }
-    @unknown default:
-      completion(GrantWire.denied.rawValue)
-    }
-  }
-
-  private func mapAVStatus(_ status: AVAuthorizationStatus) -> String {
-    switch status {
-    case .authorized: return GrantWire.granted.rawValue
-    case .notDetermined: return GrantWire.denied.rawValue
-    case .denied: return GrantWire.permanentlyDenied.rawValue
-    case .restricted: return GrantWire.restricted.rawValue
-    @unknown default: return GrantWire.denied.rawValue
+    Task {
+      let grant = await PermissionGuards.requestAuthorization(for: .microphone)
+      ensureMainThread { completion(grant.rawValue) }
     }
   }
 }

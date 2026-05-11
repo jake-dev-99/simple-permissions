@@ -15,11 +15,11 @@ public class SimplePermissionsMacosPlugin: NSObject, FlutterPlugin, PermissionsM
 
   func checkPermission(identifier: String, completion: @escaping (Result<String, Error>) -> Void) {
     guard let handler = handlers[identifier] else {
-      completion(.success(GrantWire.notApplicable.rawValue))
+      completion(.success(PermissionGrant.notApplicable.rawValue))
       return
     }
     guard handler.isSupported else {
-      completion(.success(GrantWire.notAvailable.rawValue))
+      completion(.success(PermissionGrant.notAvailable.rawValue))
       return
     }
     handler.check { wire in
@@ -29,11 +29,11 @@ public class SimplePermissionsMacosPlugin: NSObject, FlutterPlugin, PermissionsM
 
   func requestPermission(identifier: String, completion: @escaping (Result<String, Error>) -> Void) {
     guard let handler = handlers[identifier] else {
-      completion(.success(GrantWire.notApplicable.rawValue))
+      completion(.success(PermissionGrant.notApplicable.rawValue))
       return
     }
     guard handler.isSupported else {
-      completion(.success(GrantWire.notAvailable.rawValue))
+      completion(.success(PermissionGrant.notAvailable.rawValue))
       return
     }
     handler.request { wire in
