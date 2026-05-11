@@ -18,11 +18,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  simple_permissions_platform_interface: ^1.2.0
-  simple_permissions_android: ^1.2.0
-  simple_permissions_ios: ^1.2.0
-  simple_permissions_macos: ^1.2.0
-  simple_permissions_web: ^1.2.0
+  simple_permissions_platform_interface: ^1.8.0
+  simple_permissions_android: ^1.8.0
+  simple_permissions_ios: ^1.8.0
+  simple_permissions_macos: ^1.8.0
+  simple_permissions_web: ^1.8.0
 
 dev_dependencies:
   flutter_test:
