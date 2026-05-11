@@ -1,4 +1,4 @@
-## 1.8.0
+## 1.3.0
 
 - Coordinated release: aligned all federated packages on 1.8.0 to match
   the `simple_permissions_native` facade. No source changes — version
