@@ -87,6 +87,13 @@ app.*.map.json
 **/ios/Flutter/flutter_export_environment.sh
 **/ios/ServiceDefinitions.json
 **/ios/Runner/GeneratedPluginRegistrant.*
+# macOS / Linux / Windows desktop generated plugin registrants
+# (auto-emitted by flutter pub get; never edited by hand).
+**/macos/Flutter/GeneratedPluginRegistrant.swift
+**/linux/flutter/generated_plugin_registrant.cc
+**/linux/flutter/generated_plugin_registrant.h
+**/windows/flutter/generated_plugin_registrant.cc
+**/windows/flutter/generated_plugin_registrant.h
 
 # Web related
 lib/generated_plugin_registrant.dart
