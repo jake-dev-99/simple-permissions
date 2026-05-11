@@ -79,7 +79,13 @@ class PermissionObserver {
       if (self != null) self._onResumed();
     });
     _cleanup = _ObserverCleanup(_detach, _controller);
-    _finalizer.attach(this, _cleanup, detach: this);
+    // Detach token is the cleanup holder, NOT `this`. Dart's Finalizer
+    // documents detach tokens as weakly-held in practice, but using
+    // the observed value itself as the token is a readability smell —
+    // and using a token that doesn't reference the observer removes
+    // any ambiguity about what could keep the observer alive across
+    // Dart runtimes.
+    _finalizer.attach(this, _cleanup, detach: _cleanup);
   }
 
   static final Finalizer<_ObserverCleanup> _finalizer =
@@ -191,7 +197,7 @@ class PermissionObserver {
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
-    _finalizer.detach(this);
+    _finalizer.detach(_cleanup);
     _cleanup.run();
     await _controller.done;
   }
@@ -212,8 +218,7 @@ class _ObserverCleanup {
     _detach();
     if (!_controller.isClosed) {
       // Fire and forget — we only need the close to be scheduled.
-      // ignore: discarded_futures
-      _controller.close();
+      unawaited(_controller.close());
     }
   }
 }

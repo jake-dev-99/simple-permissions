@@ -1,43 +1,29 @@
-import Photos
+import Foundation
 
+/// Photo-library authorization adapter. Handles the read-write
+/// access level. The add-only level is registered separately via
+/// `.photoLibraryAddOnly` and uses the same handler shape with a
+/// different kind.
 final class PhotoLibraryPermissionHandler: PermissionHandler {
+  /// `.photoLibrary` (read-write) or `.photoLibraryAddOnly`. Allows
+  /// one handler class to serve both registrations.
+  let kind: ApplePermissionKind
+
+  init(kind: ApplePermissionKind = .photoLibrary) {
+    self.kind = kind
+  }
+
   var isSupported: Bool { true }
 
   func check(completion: @escaping (String) -> Void) {
-    let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-    completion(mapPhotoStatus(status))
+    completion(PermissionGuards.authorizationStatus(for: kind).rawValue)
   }
 
   func request(completion: @escaping (String) -> Void) {
-    let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-    switch status {
-    case .authorized:
-      completion(GrantWire.granted.rawValue)
-    case .limited:
-      completion(GrantWire.limited.rawValue)
-    case .denied:
-      completion(GrantWire.permanentlyDenied.rawValue)
-    case .restricted:
-      completion(GrantWire.restricted.rawValue)
-    case .notDetermined:
-      PHPhotoLibrary.requestAuthorization(for: .readWrite) { newStatus in
-        ensureMainThread {
-          completion(self.mapPhotoStatus(newStatus))
-        }
-      }
-    @unknown default:
-      completion(GrantWire.denied.rawValue)
-    }
-  }
-
-  private func mapPhotoStatus(_ status: PHAuthorizationStatus) -> String {
-    switch status {
-    case .authorized: return GrantWire.granted.rawValue
-    case .limited: return GrantWire.limited.rawValue
-    case .notDetermined: return GrantWire.denied.rawValue
-    case .denied: return GrantWire.permanentlyDenied.rawValue
-    case .restricted: return GrantWire.restricted.rawValue
-    @unknown default: return GrantWire.denied.rawValue
+    let kind = self.kind
+    Task {
+      let grant = await PermissionGuards.requestAuthorization(for: kind)
+      ensureMainThread { completion(grant.rawValue) }
     }
   }
 }

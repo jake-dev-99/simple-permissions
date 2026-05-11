@@ -52,6 +52,12 @@ jobs:
       # `id-token: write` is required for pub.dev's OIDC
       # exchange. No long-lived pub.dev tokens anywhere.
       id-token: write
+      # `contents: read` is required for actions/checkout to
+      # fetch the tagged ref. GitHub Actions defaults any
+      # permission you don't declare here to `none` as soon
+      # as you declare ANY permission at the job level, so
+      # the checkout below silently depends on this line.
+      contents: read
     runs-on: ubuntu-latest
 
     strategy:
