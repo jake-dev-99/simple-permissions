@@ -13,7 +13,7 @@ name: CI
 # downstream in consumer-app smoke tests and manual device runs.
 on:
   pull_request:
-    branches: [develop, staging, main]
+    branches: [main]
 
 jobs:
   package-tests:
