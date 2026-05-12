@@ -132,7 +132,7 @@ jobs:
             tag="${pkg}-v${next}"
 
             # Find previous tag for this package (highest semver).
-            prev_tag="$(git tag --list "${pkg}-v*" | sort -V | tail -1 || true)"
+            prev_tag="$(git tag --merged HEAD --list "${pkg}-v*" | sort -V | tail -1 || true)"
 
             # Generate CHANGELOG entry from commits affecting this package's dir.
             if [ -n "$prev_tag" ]; then
