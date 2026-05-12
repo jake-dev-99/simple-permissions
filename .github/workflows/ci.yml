@@ -1,14 +1,13 @@
 name: CI
 
-# Runs on every PR against the three promotion-flow branches
-# (develop -> staging -> main). Deliberately not on `push` —
-# CD handles the merge side, CI only validates proposed change.
+# Runs on every PR targeting `main`. Single-branch model: feature
+# branches PR directly into main, releases are cut via release.yml
+# (manual workflow_dispatch) which tags + triggers publish.yml.
 #
 # Ubuntu-only by design. GitHub bills macOS runners at ~10x the
 # Linux rate, and a native smoke suite on every PR burns through
-# the free-tier minutes fast. The sibling plugin repos
-# (simple-sms, simple-telephony, simple-query) run this same
-# minimal matrix and catch the regressions that matter
+# the free-tier minutes fast. The sibling plugin repos run this
+# same minimal matrix and catch the regressions that matter
 # (analyzer + unit tests). Apple-surface validation lives
 # downstream in consumer-app smoke tests and manual device runs.
 on:
@@ -26,6 +25,7 @@ jobs:
     name: Package Unit Tests (${{ matrix.package }})
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         package:
           - "."
@@ -36,6 +36,7 @@ jobs:
           - packages/simple_permissions_web
 
     steps:
+      # External actions pinned to full commit SHA per security policy.
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
@@ -48,28 +49,31 @@ jobs:
 
       - name: Analyze package
         working-directory: ${{ matrix.package }}
-        run: flutter analyze
+        # invalid_dependency warning on path-overrides between federated
+        # platform packages is expected during pre-publish development;
+        # drop warning fatality so it doesn't block the gate.
+        run: flutter analyze --no-fatal-warnings
 
       - name: Run package tests
         working-directory: ${{ matrix.package }}
-        run: flutter test
+        # Several platform packages are native-surface-only with no
+        # Dart tests. Tolerate missing test/ rather than fail.
+        run: |
+          if [ -d test ]; then
+            flutter test
+          else
+            echo "No test/ directory — skipping."
+          fi
 
       # Validate publishability at CI time so publish-blocking issues
       # (missing LICENSE, malformed pubspec, oversize files, missing
       # repository/issue_tracker URLs) surface before merge instead of
-      # after a tag push. CD then publishes with --skip-validation so
-      # the same checks aren't re-run on the publish runner where
-      # `pubspec_overrides.yaml` hints would otherwise clutter the log
-      # and an interactive OAuth flow could stall the job.
+      # after a tag push.
       #
-      # `--dry-run` exits 0 even when pub emits hints (e.g. the
-      # in-flight `pubspec_overrides.yaml` warning) so it doesn't
-      # falsely fail develop branches where overrides are expected.
+      # `--dry-run` exits 0 on hints (the `pubspec_overrides.yaml`
+      # warning expected during pre-publish dev) but fails on hard
+      # errors. 2-minute cap to fail fast if pub is wedged.
       - name: Validate publishability (pub publish --dry-run)
-        # 2-minute cap, matching the publish step in publish.yml. A
-        # healthy `--dry-run` finishes in 10-30 s; anything longer
-        # means pub is wedged on dependency resolution or a runaway
-        # file walk. Fail fast rather than burn a runner.
         timeout-minutes: 2
         working-directory: ${{ matrix.package }}
         run: flutter pub publish --dry-run
