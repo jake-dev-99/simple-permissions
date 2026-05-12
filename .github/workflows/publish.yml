@@ -60,10 +60,30 @@ jobs:
     # job-level `if:` before matrix expansion, so `matrix.package.name`
     # isn't resolvable there.
     steps:
-      - uses: actions/checkout@v4
+      # External actions pinned to full commit SHA per security policy.
+      # `id-token: write` here means a compromised action could request
+      # OIDC tokens for pub.dev; pinning prevents upstream-tag retargets
+      # from silently swapping in malicious code mid-release.
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         if: startsWith(github.ref, format('refs/tags/{0}-v', matrix.package.name))
+        with:
+          # Full history for the ancestry check below.
+          fetch-depth: 0
 
-      - uses: subosito/flutter-action@v2
+      - name: Verify tag commit is on main
+        # `on.push.tags` is not branch-scoped — a tag pushed from any
+        # branch (manually or via mistake) would otherwise trigger this
+        # publish. release.yml normally only tags from main, but verify
+        # independently rather than relying on that contract.
+        if: startsWith(github.ref, format('refs/tags/{0}-v', matrix.package.name))
+        run: |
+          git fetch origin main --depth=1
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Tag ${GITHUB_REF#refs/tags/} does not point to a commit on origin/main. Aborting publish."
+            exit 1
+          fi
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         if: startsWith(github.ref, format('refs/tags/{0}-v', matrix.package.name))
         with:
           channel: stable
