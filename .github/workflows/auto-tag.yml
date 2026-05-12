@@ -10,21 +10,38 @@ name: Auto-tag on merge
 # Per package, on each merge:
 #
 #   pubspec_version  = what the pubspec.yaml currently says
-#   last_tag_version = max version across existing
-#                      `<package>-v<semver>` tags
-#   candidate        = last_tag_version with patch + 1
-#                      (or 0.0.1 if no tags exist yet)
+#   last_published   = pub.dev's latest published version
+#                      (falls back to git tags only when pub.dev
+#                      returns 404 — i.e. the package has never
+#                      been published)
+#   candidate        = last_published with patch + 1
+#                      (or 0.0.1 if neither pub.dev nor tags know
+#                      about this package yet)
 #   next_version     = max(pubspec_version, candidate)
 #
+# Why pub.dev and not git tags? A tag can exist without ever
+# reaching pub.dev (publish.yml run that timed out, OIDC
+# misconfiguration, etc.). When that happens, basing `candidate`
+# on the orphan tag silently bumps git further past pub.dev,
+# producing the "non-incremental update" hint pub.dev emits when
+# you finally publish — and burying the source of truth (what
+# users have actually installed). pub.dev's API is the only
+# authoritative answer to "what's the latest version a user can
+# `flutter pub get`."
+#
 # Behaviour that falls out:
-#   - Developer did nothing special -> patch bump from the
-#     last release.
+#   - Developer did nothing special -> patch bump from pub.dev's
+#     latest.
 #   - Developer bumped pubspec (minor or major) on the merge PR
 #     -> next_version == pubspec_version (the auto-bumper sees
 #     pubspec > candidate and respects the manual intent).
 #   - First release of a package -> pubspec_version wins because
-#     there are no tags; whatever the pubspec says is what
-#     ships.
+#     pub.dev returns 404 and no tags exist; whatever the pubspec
+#     says is what ships.
+#   - Orphan git tag from a previously-failed publish -> ignored.
+#     Next attempt re-uses the same version because pub.dev never
+#     received it; the orphan can be deleted later without
+#     affecting this workflow.
 #
 # ## Change detection
 #
@@ -143,6 +160,50 @@ jobs:
               && [ "$a" != "$b" ]
           }
 
+          # Resolve "what's actually published" for one package.
+          # Hits pub.dev's public API (no auth required for reads).
+          #
+          # Distinguishes three outcomes via exit code so the caller
+          # can react differently — collapsing them all into "fall back
+          # to git tags" would re-introduce the orphan-tag drift this
+          # patch is meant to prevent (a transient pub.dev 5xx during
+          # auto-tag would silently use the local orphan tag, push a
+          # newer version, and the orphan would become permanent).
+          #
+          #   exit 0  + version on stdout → ok, use it.
+          #   exit 10 → pub.dev 404 (package not published yet). Caller
+          #             may fall back to git tags (first-publish path).
+          #   exit 20 → transient: 5xx, network/TLS, timeout, or 200
+          #             with a body that jq can't parse. Caller MUST
+          #             fail loudly rather than silently fall back.
+          pubdev_latest() {
+            local pkg="$1"
+            local response http body version
+            # `-w '\n%{http_code}'` appends the HTTP code on its own
+            # line so we can split body / status reliably. `--max-time
+            # 10` so a flaky network call doesn't hang the workflow.
+            response="$(curl -sS --max-time 10 \
+              -w $'\n%{http_code}' \
+              "https://pub.dev/api/packages/${pkg}" 2>/dev/null)" \
+              || return 20
+            http="${response##*$'\n'}"
+            body="${response%$'\n'*}"
+            case "$http" in
+              200)
+                version="$(echo "$body" \
+                  | jq -r '.latest.version // empty' 2>/dev/null)" \
+                  || return 20
+                if [ -z "$version" ]; then
+                  return 20
+                fi
+                echo "$version"
+                return 0
+                ;;
+              404) return 10 ;;
+              *)   return 20 ;;
+            esac
+          }
+
           for pkg in "${!pkgs[@]}"; do
             dir="${pkgs[$pkg]}"
             rel_prefix="${dir%/}"
@@ -166,14 +227,35 @@ jobs:
             pubspec_v="$(grep '^version:' "$pubspec_path" \
               | sed 's/version:[[:space:]]*//' | tr -d '\r')"
 
-            last_tag="$(git tag --list "${pkg}-v*" \
-              | sed "s/^${pkg}-v//" \
-              | sort -V | tail -1 || true)"
+            # Authoritative: pub.dev. Fall back to git tags ONLY on a
+            # clean 404 (first-publish path). On transient errors (5xx,
+            # network, parse), fail the whole workflow — silently using
+            # local tags would silently drift git past pub.dev, which
+            # is exactly what this patch prevents.
+            set +e
+            last_published="$(pubdev_latest "$pkg")"
+            pd_status=$?
+            set -e
+            case "$pd_status" in
+              0)
+                source="pub.dev"
+                ;;
+              10)
+                last_published="$(git tag --list "${pkg}-v*" \
+                  | sed "s/^${pkg}-v//" \
+                  | sort -V | tail -1 || true)"
+                source="git-tag-fallback (pub.dev 404)"
+                ;;
+              *)
+                echo "::error::pubdev_latest($pkg) failed with code $pd_status — transient pub.dev or network error. Re-run the workflow once pub.dev is healthy. Aborting to avoid silently drifting git tags past published versions."
+                exit 1
+                ;;
+            esac
 
-            if [ -z "$last_tag" ]; then
+            if [ -z "$last_published" ]; then
               candidate="$pubspec_v"
             else
-              candidate="$(next_patch "$last_tag")"
+              candidate="$(next_patch "$last_published")"
             fi
 
             if version_gt "$pubspec_v" "$candidate"; then
@@ -182,7 +264,7 @@ jobs:
               next="$candidate"
             fi
 
-            echo "::notice::$pkg pubspec=$pubspec_v last_tag=${last_tag:-<none>} next=$next"
+            echo "::notice::$pkg pubspec=$pubspec_v last_published=${last_published:-<none>} (source=$source) next=$next"
 
             if [ "$pubspec_v" != "$next" ]; then
               sed -i -E "s/^version:[[:space:]]*.*$/version: $next/" "$pubspec_path"

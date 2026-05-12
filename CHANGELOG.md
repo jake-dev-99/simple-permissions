@@ -1,3 +1,25 @@
+## 1.6.1
+
+### Reset to align with pub.dev's published series
+
+`simple_permissions_native` on pub.dev is at 1.6.0. Local git
+tags 1.7.0, 1.8.0, 1.8.1, 1.8.2 were authored ahead of the next
+publish but never reached pub.dev (publish runs failed; tags
+were orphans). All four orphan tags have been deleted from
+origin and the version reset to the smallest patch above the
+last-published version (1.6.0 → 1.6.1) so the next auto-tag
+cycle produces a published artifact users can actually
+`flutter pub get`.
+
+Cross-package constraints lowered from `^1.8.0` to `^1.3.0` to
+match the platform packages' published versions (also reset to
+1.3.1 in this PR).
+
+The 1.7.0 / 1.8.0 work described in the entries below is not
+lost — it lives in source and will surface in published form
+through subsequent patch / minor / major bumps as appropriate.
+Entries kept for archival reference.
+
 ## 1.8.0
 
 ### Changed — PermissionGuards re-framed as a developer-facing helper
