@@ -189,9 +189,22 @@ jobs:
         # 2-minute cap. A healthy OIDC-backed publish finishes in
         # 10-30 s; anything much longer means pub fell back to the
         # interactive OAuth flow (which happens if the OIDC token's
-        # `ref` claim doesn't match pub.dev's configured tag
-        # pattern). Better to fail fast than sit on the runner.
+        # `ref` claim doesn't match pub.dev's configured tag pattern
+        # OR — more subtly — if the pub binary doing the call doesn't
+        # propagate the OIDC env vars). Better to fail fast than sit
+        # on the runner.
+        #
+        # `dart pub publish` (not `flutter pub publish`) is what
+        # dart-lang's own automated-publishing recipe runs. The earlier
+        # `flutter pub` choice was because dart pub refuses to resolve
+        # a Flutter-SDK-pinned package — but `--skip-validation` skips
+        # the resolution step that throws, so dart pub now works
+        # uniformly across facade + platform packages. The OIDC
+        # handshake is identical (`ACTIONS_ID_TOKEN_REQUEST_*` env
+        # vars injected by `id-token: write`), but going through dart
+        # pub directly removes one layer of indirection that's been
+        # associated with OIDC propagation gaps in this workflow.
         timeout-minutes: 2
         if: startsWith(needs.resolve-tag.outputs.tag, format('{0}-v', matrix.package.name))
         working-directory: ${{ matrix.package.path }}
-        run: flutter pub publish --force --skip-validation
+        run: dart pub publish --force --skip-validation
