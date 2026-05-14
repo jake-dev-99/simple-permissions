@@ -1,3 +1,6 @@
+## 1.3.3
+
+- (no commits in packages/simple_permissions_android since simple_permissions_android-v1.3.2)
 ## 1.3.2
 
 - (no commits in packages/simple_permissions_android since simple_permissions_android-v1.3.1)

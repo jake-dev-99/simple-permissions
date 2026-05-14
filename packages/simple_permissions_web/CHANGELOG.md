@@ -1,3 +1,6 @@
+## 1.3.3
+
+- (no commits in packages/simple_permissions_web since simple_permissions_web-v1.3.2)
 ## 1.3.2
 
 - (no commits in packages/simple_permissions_web since simple_permissions_web-v1.3.1)

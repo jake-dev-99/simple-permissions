@@ -1,3 +1,7 @@
+## 1.6.3
+
+- Merge pull request #59 from jake-dev-99/claude/happy-austin-bc06a5
+- fix(release): split push so tag events trigger Deploy workflow
 ## 1.6.2
 
 - fix(release): use static github-actions[bot] identity

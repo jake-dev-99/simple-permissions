@@ -1,3 +1,6 @@
+## 1.3.3
+
+- (no commits in packages/simple_permissions_macos since simple_permissions_macos-v1.3.2)
 ## 1.3.2
 
 - (no commits in packages/simple_permissions_macos since simple_permissions_macos-v1.3.1)
