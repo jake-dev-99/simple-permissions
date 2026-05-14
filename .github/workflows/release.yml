@@ -57,22 +57,29 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
       - name: Checkout main
-        # SHA-pinned per security policy (this workflow has contents:write
-        # and pushes directly to main via deploy-key bypass).
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           ref: main
           fetch-depth: 0
-          # AUTO_TAG_DEPLOY_KEY is in the main-branch ruleset bypass list
-          # (existing secret used by the now-removed auto-tag.yml). Lets
-          # this workflow push the bump commit + tag(s) directly to main.
-          ssh-key: ${{ secrets.AUTO_TAG_DEPLOY_KEY }}
+          token: ${{ steps.app-token.outputs.token }}
 
       - name: Configure git identity
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          app_info=$(gh api /app)
+          app_slug=$(echo "$app_info" | jq -r '.slug')
+          app_id=$(echo "$app_info" | jq -r '.id')
+          git config user.name "${app_slug}[bot]"
+          git config user.email "${app_id}+${app_slug}[bot]@users.noreply.github.com"
 
       - name: Cut release
         env:
