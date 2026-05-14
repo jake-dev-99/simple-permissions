@@ -1,3 +1,6 @@
+## 1.3.2
+
+- (no commits in packages/simple_permissions_ios since simple_permissions_ios-v1.3.1)
 ## 1.3.1
 
 ### Reset to align with pub.dev's published series

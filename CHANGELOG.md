@@ -1,3 +1,16 @@
+## 1.6.2
+
+- fix(release): use static github-actions[bot] identity
+- fix(release): use vars.RELEASE_APP_ID instead of secrets
+- fix(release): use GitHub App token for signed commits
+- fix(release): repair YAML parse error from multi-line bash literal
+- fix(deploy): use dart pub publish for OIDC handshake
+- fix(cicd): address rename-PR review (security + cosmetic + docs)
+- ci(workflows): rename for human-friendly UI labels (Verify / Deploy)
+- ci: defensive fixes from bridge review (deep main fetch + reachable prev_tag)
+- ci(critical): tag-on-main verify, SHA-pin OIDC actions, push-on-main trigger, empty-changes guard
+- ci(publish): revert to proven subosito/flutter-action + flutter pub publish
+- ci(cd): single-branch + tag-driven publish (overhaul)
 ## 1.6.1
 
 ### Reset to align with pub.dev's published series
