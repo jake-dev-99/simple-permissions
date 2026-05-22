@@ -1,5 +1,7 @@
 # simple_permissions_native
 
+> **Contributing / agents:** see [`AGENTS.md`](AGENTS.md) for build·test·verify, conventions, and the "What NOT to do" rulings (Claude Code reads it via [`CLAUDE.md`](CLAUDE.md)). Governed by the Simple Zen SOP family (Notion).
+
 [![CI](https://github.com/simplezen/simple-permissions/actions/workflows/ci.yml/badge.svg)](https://github.com/simplezen/simple-permissions/actions/workflows/ci.yml)
 
 A federated Flutter permission plugin with a **typed, sealed-class API**. Every permission is a Dart type — no stringly-typed lookups, no magic enums. Pattern-match on results, batch requests in a single call, and express features as Intentions instead of raw permission lists.
