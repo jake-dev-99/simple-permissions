@@ -33,8 +33,11 @@ implements it; the facade dispatches to them.
 
 ## Build · test · verify
 
-Dart `^3.6.0`, Flutter `>=3.24.0`. Mirror CI (`.github/workflows/verify.yml`),
-which runs a per-package matrix. Before any push:
+SDK constraints live in each package's `pubspec.yaml` (`environment:`
+block) — that's the source of truth; this doc does not pin specific
+versions so the two can't drift. Mirror CI
+(`.github/workflows/verify.yml`), which runs a per-package matrix.
+Before any push:
 
 ```sh
 flutter pub get
