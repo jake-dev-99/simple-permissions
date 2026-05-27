@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-Short records of the load-bearing decisions behind `simple_permissions`.
+Short records of the load-bearing decisions behind `simple_permissions_native`.
 Each ADR captures **context · decision · alternatives considered ·
 consequences · resolution trigger** (the last only when the decision is
 bounded). New decisions land here as numbered files (`NNNN-kebab-title.md`).
