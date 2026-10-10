@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Keep Flutter's build/platform analyzer exclusions explicit so dependency resolution
+  leaves publishable source unchanged on current stable Flutter (UNFY-123).
 - Require platform packages `^1.3.4` so consumers resolve compatible published
   dependencies, including Android's native `PermissionGuards` API (UNFY-123).
 - Validate published dependencies before tagging and publish Flutter packages

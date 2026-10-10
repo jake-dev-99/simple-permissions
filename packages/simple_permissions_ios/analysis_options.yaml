@@ -2,6 +2,10 @@ include: package:flutter_lints/flutter.yaml
 
 analyzer:
   exclude:
+    # Keep Flutter build output and platform scaffolding out of Dart analysis.
+    # Explicit exclusions prevent SDK migration from changing publishable source (UNFY-123).
+    - build/**
+    - ios/**
     # pigeon.dart is an ad-hoc codegen script (run via
     # `dart run pigeon`) not compiled into the plugin. It
     # imports pigeon as a dev-only dep; analyzing it in CI
