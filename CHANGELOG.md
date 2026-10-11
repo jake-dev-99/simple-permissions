@@ -1,3 +1,12 @@
+## Unreleased
+
+- Keep Flutter's build/platform analyzer exclusions explicit so dependency resolution
+  leaves publishable source unchanged on current stable Flutter (UNFY-123).
+- Require platform packages `^1.3.4` so consumers resolve compatible published
+  dependencies, including Android's native `PermissionGuards` API (UNFY-123).
+- Validate published dependencies before tagging and publish Flutter packages
+  with normal validation and temporary OIDC credentials (UNFY-123).
+
 ## 1.6.3
 
 - Merge pull request #59 from jake-dev-99/claude/happy-austin-bc06a5

@@ -26,3 +26,12 @@ linter:
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options
+
+analyzer:
+  exclude:
+    # Keep Flutter build output and platform scaffolding out of Dart analysis.
+    # Explicit exclusions prevent SDK migration from changing publishable source (UNFY-123).
+    - build/**
+    - android/**
+    - ios/**
+    - macos/**
