@@ -23,15 +23,9 @@ on:
       - 'simple_permissions_ios-v*'
       - 'simple_permissions_macos-v*'
       - 'simple_permissions_web-v*'
-  # Manual re-fire for an existing tag — e.g. transient pub.dev
-  # outage swallowed the original tag-push run, or an OIDC config
-  # was fixed and the publish needs to be retried against the same
-  # tag. The `tag` input must be an existing tag name (e.g.
-  # `simple_permissions_ios-v1.3.1`); the resolve step keys deploys
-  # off that exact value.
-  #
-  # Dispatch on the existing tag ref so the OIDC ref claim matches
-  # pub.dev's configured tag pattern. Never move a release tag to retry.
+  # Manual dispatch remains for inspection/validation. Pub.dev automated upload
+  # requires the original tag-push event: recover through Cut Release resume or
+  # Re-run failed jobs on that original run. Never move/delete a package tag.
   workflow_dispatch:
     inputs:
       tag:
