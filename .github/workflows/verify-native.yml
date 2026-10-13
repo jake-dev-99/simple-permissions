@@ -109,10 +109,9 @@ jobs:
         # sdkmanager by absolute path. Feed a bounded `printf` of license
         # acceptances rather than `yes |` (infinite `yes` dies by SIGPIPE
         # 141 under the runner's pipefail shell when sdkmanager stops
-        # reading). NDK is intentionally NOT installed: AGP resolves the
-        # example app's pinned ndkVersion while configuring, and
-        # example/android/app/build.gradle.kts pins one preinstalled on
-        # ubuntu-latest.
+        # reading). NDK is intentionally NOT installed: the example app pins
+        # an ndkVersion that is preinstalled on ubuntu-latest
+        # (example/android/app/build.gradle.kts), so nothing downloads one.
         env:
           COMPILE_SDK: ${{ steps.android-sdk.outputs.compile_sdk }}
         run: printf 'y\n%.0s' $(seq 50) | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-${COMPILE_SDK}"
@@ -131,3 +130,18 @@ jobs:
         # --no-daemon: throwaway CI runner, a persistent Gradle daemon buys
         # nothing. --stacktrace: full trace on failure (fail-loud stance).
         run: ./gradlew :simple_permissions_android:testDebugUnitTest --console=plain --no-daemon --stacktrace
+
+      - name: Assert unit tests executed
+        # Gradle exits 0 with `NO-SOURCE` if the test sources are moved or
+        # dropped from the source set, which would leave this gate green with
+        # zero tests run. The example's build.gradle.kts redirects each
+        # module's build dir to example/build/<module>.
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          results=(example/build/simple_permissions_android/test-results/testDebugUnitTest/*.xml)
+          if [ "${#results[@]}" -eq 0 ]; then
+            echo "::error::No JUnit result files found; the native unit tests did not run"
+            exit 1
+          fi
+          echo "::notice::${#results[@]} JUnit result file(s) produced"

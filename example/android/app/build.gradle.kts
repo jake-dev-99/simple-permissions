@@ -8,7 +8,8 @@ android {
     namespace = "com.example.simple_permissions_example"
     compileSdk = 36
     // Preinstalled on GitHub's ubuntu-latest runner, so verify-native.yml
-    // never downloads an NDK. Keep any bump on a runner-preinstalled version.
+    // never has to download an NDK. Keep any bump on a runner-preinstalled
+    // version.
     ndkVersion = "30.0.16248370"
 
     compileOptions {
