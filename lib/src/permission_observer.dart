@@ -65,9 +65,9 @@ class _Adapter extends WidgetsBindingObserver {
 class PermissionObserver {
   PermissionObserver._({
     required this.permissions,
-    required SimplePermissionsPlatform platform,
+    required this._platform,
     PermissionObserverLifecycle? lifecycle,
-  }) : _platform = platform {
+  }) {
     final source = lifecycle ?? WidgetsBindingLifecycle();
     // Weak self-reference so the lifecycle source doesn't pin this
     // observer in memory; without this, the finalizer below could
