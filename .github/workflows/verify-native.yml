@@ -1,0 +1,133 @@
+name: Verify (native)
+
+# Native Kotlin compile + JVM (JUnit 5 / Mockito) unit tests for
+# `packages/simple_permissions_android/android/` — the half of the codebase
+# that the Dart-only `verify.yml` (`flutter test`) never compiles or touches.
+#
+# WHY THIS EXISTS (UNFY-197). A Kotlin change in the permissions /
+# role-manager layer could previously reach `main` with ZERO Kotlin compiled
+# or tested: `verify.yml` is Dart-only. This is the same hole UNFY-162 closed
+# in simple-sms (where it let the UNFY-182 MMS-send regression ship), and
+# this workflow ports that gate here.
+#
+# COST CONTROL. Path-gated to the Android plugin's native module (+ the
+# example app's Android project, the manifests that decide which Android
+# plugin the example resolves, and this workflow itself), so it does NOT run
+# on Dart-only or docs PRs.
+#
+# Runs through the *example app's* Gradle. The plugin module can't configure
+# on its own: it compiles against the Flutter embedding, which only Flutter's
+# Gradle plugin (applied in the app's settings) provides, and that settings
+# file needs `flutter.sdk` from `local.properties`. `flutter build apk
+# --config-only` injects the gitignored gradlew wrapper + `local.properties`
+# without building the app; the unit-test task then compiles the plugin's
+# main + test Kotlin and runs the tests.
+#
+# External GitHub Actions are pinned to a full commit SHA (not a floating
+# tag) for supply-chain safety, with a human-readable version comment — same
+# convention as verify.yml / deploy.yml.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/simple_permissions_android/android/**'
+      - 'example/android/**'
+      # Manifests that decide what the example's Gradle build includes: the
+      # facade's `default_package` (pubspec.yaml), the Android plugin's
+      # package/pluginClass registration, and the example's dependency +
+      # path-override wiring. A change to any of them can change what the
+      # native side compiles, so gate on them too.
+      - 'pubspec.yaml'
+      - 'packages/simple_permissions_android/pubspec.yaml'
+      - 'example/pubspec.yaml'
+      - 'example/pubspec_overrides.yaml'
+      - '.github/workflows/verify-native.yml'
+  # Manual override for re-running the native gate against a specific ref.
+  workflow_dispatch:
+
+jobs:
+  native-unit-tests:
+    name: Native unit tests
+    runs-on: ubuntu-latest
+    # Bounds a hung Gradle / sdkmanager run well below GitHub's 6-hour default.
+    timeout-minutes: 30
+    permissions:
+      contents: read  # checkout only; least-privilege (zizmor)
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false  # no later step does authenticated git ops (zizmor artipacked)
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+
+      - name: Set up JDK 21 (Temurin)
+        # Provision JDK 21 explicitly rather than leaning on the runner's
+        # preinstalled $JAVA_HOME_21_X64 (brittle across runner images).
+        # setup-java exports JAVA_HOME for the steps below. Version matches
+        # the plugin's android/build.gradle (VERSION_21).
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
+        with:
+          distribution: temurin
+          java-version: '21'
+          # Cache ~/.gradle (downloaded dependencies + wrapper dists — the
+          # bulk of this gate's wall time) via setup-java's built-in Gradle
+          # cache, mirroring simple-sms (UNFY-190). Not a separate
+          # `actions/cache` step: setup-java is already SHA-pinned above.
+          # Downloads only — task outputs are NOT cached, so the compile +
+          # unit tests still run fresh on every PR.
+          cache: gradle
+
+      - name: Resolve Android SDK version from build.gradle
+        id: android-sdk
+        working-directory: packages/simple_permissions_android/android
+        # Single source of truth, mirroring simple-sms (UNFY-188): parse
+        # compileSdk straight from the plugin's build.gradle so the
+        # sdkmanager install below can't drift from what the module compiles
+        # against. The module declares no buildToolsVersion, so AGP uses its
+        # own default build-tools, which ubuntu-latest preinstalls.
+        run: |
+          set -euo pipefail
+          # `^\s*` anchors the match to the start of the line so a
+          # commented-out `// compileSdk = 33` can't be picked up by `-m1`
+          # ahead of the real declaration. `|| true`: a no-match grep exits
+          # 1, which under `set -e` would abort before the explicit check
+          # below — let the empty-check be the one that fails.
+          compile_sdk="$(grep -oP -m1 '^\s*compileSdk\s*=\s*\K[0-9]+' build.gradle || true)"
+          if [ -z "$compile_sdk" ]; then
+            echo "::error::Could not parse compileSdk from packages/simple_permissions_android/android/build.gradle"
+            exit 1
+          fi
+          echo "compile_sdk=$compile_sdk" >> "$GITHUB_OUTPUT"
+          echo "::notice::Resolved Android SDK from build.gradle: platforms;android-$compile_sdk"
+
+      - name: Install Android SDK platform (compileSdk)
+        # cmdline-tools live under $ANDROID_HOME and are NOT on PATH — invoke
+        # sdkmanager by absolute path. Feed a bounded `printf` of license
+        # acceptances rather than `yes |` (infinite `yes` dies by SIGPIPE
+        # 141 under the runner's pipefail shell when sdkmanager stops
+        # reading). NDK is intentionally NOT installed: AGP resolves the
+        # example app's pinned ndkVersion while configuring, and
+        # example/android/app/build.gradle.kts pins one preinstalled on
+        # ubuntu-latest.
+        env:
+          COMPILE_SDK: ${{ steps.android-sdk.outputs.compile_sdk }}
+        run: printf 'y\n%.0s' $(seq 50) | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-${COMPILE_SDK}"
+
+      - name: Resolve example app deps
+        working-directory: example
+        run: flutter pub get
+
+      - name: Generate Gradle wrapper + local.properties
+        working-directory: example
+        # Configures the example's Android project without building the app.
+        run: flutter build apk --config-only
+
+      - name: Run native JVM unit tests
+        working-directory: example/android
+        # --no-daemon: throwaway CI runner, a persistent Gradle daemon buys
+        # nothing. --stacktrace: full trace on failure (fail-loud stance).
+        run: ./gradlew :simple_permissions_android:testDebugUnitTest --console=plain --no-daemon --stacktrace
