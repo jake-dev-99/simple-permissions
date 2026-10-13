@@ -9,8 +9,8 @@ iOS implementation for simple_permissions federated plugin.
   s.license          = { :file => '../LICENSE' }
   s.author           = { 'SimpleZen' => 'support@simplezen.io' }
   s.source           = { :path => '.' }
-  s.source_files     = 'Classes/**/*'
-  s.resource_bundles  = { 'simple_permissions_ios_privacy' => ['Resources/PrivacyInfo.xcprivacy'] }
+  s.source_files     = 'simple_permissions_ios/Sources/simple_permissions_ios/**/*.swift'
+  s.resource_bundles  = { 'simple_permissions_ios_privacy' => ['simple_permissions_ios/Sources/simple_permissions_ios/PrivacyInfo.xcprivacy'] }
   s.dependency 'Flutter'
   s.platform         = :ios, '14.0'
 

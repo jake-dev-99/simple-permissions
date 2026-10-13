@@ -327,6 +327,6 @@ Every Apple framework with a permission prompt requires a matching `NS*UsageDesc
 
 - [`lib/simple_permissions_native.dart`](../lib/simple_permissions_native.dart) — Dart facade, including the gate helpers.
 - [`PermissionGuards.kt`](../packages/simple_permissions_android/android/src/main/kotlin/io/simplezen/simple_permissions_android/PermissionGuards.kt) — Android native assertions.
-- [`PermissionGuards.swift` (iOS)](../packages/simple_permissions_ios/ios/Classes/PermissionGuards.swift) — iOS native check / require / request.
-- [`PermissionGuards.swift` (macOS)](../packages/simple_permissions_macos/macos/Classes/PermissionGuards.swift) — macOS equivalent.
+- [`PermissionGuards.swift` (iOS)](../packages/simple_permissions_ios/ios/simple_permissions_ios/Sources/simple_permissions_ios/PermissionGuards.swift) — iOS native check / require / request.
+- [`PermissionGuards.swift` (macOS)](../packages/simple_permissions_macos/macos/simple_permissions_macos/Sources/simple_permissions_macos/PermissionGuards.swift) — macOS equivalent.
 - [`example/lib/main.dart`](../example/lib/main.dart) — `guard`-based demo card for the Dart side.

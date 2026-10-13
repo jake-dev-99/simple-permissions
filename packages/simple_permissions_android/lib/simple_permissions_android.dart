@@ -31,9 +31,8 @@ import 'src/pigeon_permissions_api.dart';
 class SimplePermissionsAndroid extends SimplePermissionsPlatform {
   SimplePermissionsAndroid({
     PermissionsApi? api,
-    SdkVersionProvider? sdkVersionOverride,
-  })  : _api = api ?? PigeonPermissionsApi(PermissionsHostApi()),
-        _sdkVersionOverride = sdkVersionOverride;
+    this._sdkVersionOverride,
+  })  : _api = api ?? PigeonPermissionsApi(PermissionsHostApi());
 
   static void registerWith() {
     SimplePermissionsPlatform.instance = SimplePermissionsAndroid();
