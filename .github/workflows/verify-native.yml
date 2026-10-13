@@ -134,8 +134,11 @@ jobs:
       - name: Assert unit tests executed
         # Gradle exits 0 with `NO-SOURCE` if the test sources are moved or
         # dropped from the source set, which would leave this gate green with
-        # zero tests run. The example's build.gradle.kts redirects each
-        # module's build dir to example/build/<module>.
+        # zero tests run. example/android/build.gradle.kts sets the root build
+        # dir to `rootProject.layout.buildDirectory.dir("../../build")`,
+        # resolved against the default root build dir (example/android/build),
+        # i.e. example/build; each module then builds in example/build/<module>.
+        # Confirmed on CI: the three test classes yield three result files here.
         run: |
           set -euo pipefail
           shopt -s nullglob
