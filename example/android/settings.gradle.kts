@@ -18,10 +18,11 @@ pluginManagement {
 
 plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
-    id("com.android.application") version "8.7.0" apply false
-    // Kotlin 2.1.21 — Flutter's tooling deprecates <2.1.0, and 1.8.x
-    // tops out at JVM target 19 while compileOptions asks for 21.
-    id("org.jetbrains.kotlin.android") version "2.1.21" apply false
+    // AGP 8.11.1 / Kotlin 2.2.20 / Gradle 8.14 (gradle-wrapper.properties)
+    // are Flutter stable's minimum supported versions; anything older
+    // fails the Flutter Gradle plugin's dependency-version check.
+    id("com.android.application") version "8.11.1" apply false
+    id("org.jetbrains.kotlin.android") version "2.2.20" apply false
 }
 
 include(":app")
