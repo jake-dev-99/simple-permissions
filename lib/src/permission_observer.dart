@@ -65,9 +65,13 @@ class _Adapter extends WidgetsBindingObserver {
 class PermissionObserver {
   PermissionObserver._({
     required this.permissions,
-    required this._platform,
+    required SimplePermissionsPlatform platform,
     PermissionObserverLifecycle? lifecycle,
-  }) {
+  })
+      // Not `this._platform`: older package:analyzer releases, still pinned by
+      // downstream code generators, reject Dart 3.12 private named parameters.
+      // ignore: prefer_initializing_formals
+      : _platform = platform {
     final source = lifecycle ?? WidgetsBindingLifecycle();
     // Weak self-reference so the lifecycle source doesn't pin this
     // observer in memory; without this, the finalizer below could
