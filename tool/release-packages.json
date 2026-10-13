@@ -1,0 +1,8 @@
+{
+  "simple_permissions_native": ".",
+  "simple_permissions_platform_interface": "packages/simple_permissions_platform_interface",
+  "simple_permissions_android": "packages/simple_permissions_android",
+  "simple_permissions_ios": "packages/simple_permissions_ios",
+  "simple_permissions_macos": "packages/simple_permissions_macos",
+  "simple_permissions_web": "packages/simple_permissions_web"
+}

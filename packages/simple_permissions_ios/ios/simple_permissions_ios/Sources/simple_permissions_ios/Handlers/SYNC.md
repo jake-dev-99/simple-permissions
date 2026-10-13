@@ -1,7 +1,7 @@
 # iOS/macOS Handler Sync Guide
 
-Several macOS handlers share logic with their iOS counterparts in
-`packages/simple_permissions_ios/ios/Classes/Handlers/`. When fixing bugs
+Several iOS handlers share logic with their macOS counterparts in
+`packages/simple_permissions_macos/macos/simple_permissions_macos/Sources/simple_permissions_macos/Handlers/`. When fixing bugs
 or changing behavior in a handler listed below, check whether the same change
 applies to the other platform.
 
@@ -15,13 +15,6 @@ applies to the other platform.
 | NotificationPermissionHandler | Identical |
 | PhotoLibraryPermissionHandler | Shared logic, macOS has backward-compat for pre-11.0 |
 
-## Handlers with divergent implementations
-
-| Handler | Why they differ |
-|---------|----------------|
-| MicrophonePermissionHandler | iOS uses `AVAudioSession.recordPermission`; macOS uses `AVCaptureDevice.authorizationStatus(for: .audio)` |
-| LocationPermissionHandler | iOS supports `whenInUse` vs `always` levels; macOS only requests `always` |
-
 ## iOS-only handlers (no macOS equivalent)
 
 - BluetoothPermissionHandler
@@ -29,6 +22,13 @@ applies to the other platform.
 - MotionPermissionHandler
 - SpeechPermissionHandler
 - TrackingPermissionHandler
+
+## Handlers with divergent implementations
+
+| Handler | Why they differ |
+|---------|----------------|
+| MicrophonePermissionHandler | iOS uses `AVAudioSession.recordPermission`; macOS uses `AVCaptureDevice.authorizationStatus(for: .audio)` |
+| LocationPermissionHandler | iOS supports `whenInUse` vs `always` levels; macOS only requests `always` |
 
 ## Also shared
 

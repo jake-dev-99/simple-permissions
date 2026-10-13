@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Require Flutter 3.44 / Dart 3.12, the floor of the platform packages'
+  Swift Package Manager and built-in Kotlin support (UNFY-173).
 - Keep Flutter's build/platform analyzer exclusions explicit so dependency resolution
   leaves publishable source unchanged on current stable Flutter (UNFY-123).
 - Require platform packages `^1.3.4` so consumers resolve compatible published

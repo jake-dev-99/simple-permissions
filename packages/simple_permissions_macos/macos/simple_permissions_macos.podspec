@@ -9,8 +9,8 @@ macOS implementation for simple_permissions federated plugin.
   s.license          = { :file => '../LICENSE' }
   s.author           = { 'SimpleZen' => 'support@simplezen.io' }
   s.source           = { :path => '.' }
-  s.source_files     = 'Classes/**/*'
-  s.resource_bundles  = { 'simple_permissions_macos_privacy' => ['Resources/PrivacyInfo.xcprivacy'] }
+  s.source_files     = 'simple_permissions_macos/Sources/simple_permissions_macos/**/*.swift'
+  s.resource_bundles  = { 'simple_permissions_macos_privacy' => ['simple_permissions_macos/Sources/simple_permissions_macos/PrivacyInfo.xcprivacy'] }
   s.dependency 'FlutterMacOS'
   s.platform         = :osx, '10.15'
 

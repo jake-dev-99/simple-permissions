@@ -16,7 +16,7 @@ import UserNotifications
 /// subset of frameworks (no bluetooth, speech, tracking, motion, or
 /// health — those don't exist on macOS or have different access
 /// models). The two modules don't share source today; the handler
-/// split already tracked in `Classes/Handlers/SYNC.md` follows the
+/// split already tracked in `Handlers/SYNC.md` follows the
 /// same pattern.
 ///
 /// Explicitly not covered:

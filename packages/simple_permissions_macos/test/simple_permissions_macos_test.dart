@@ -434,7 +434,7 @@ void main() {
 
     test('Dart and Swift registries stay aligned', () async {
       final swiftRegistry = await File(
-        'macos/Classes/PermissionRegistry.swift',
+        'macos/simple_permissions_macos/Sources/simple_permissions_macos/PermissionRegistry.swift',
       ).readAsString();
       final swiftIdentifiers = _extractSwiftIdentifiers(swiftRegistry);
       final dartIdentifiers = registeredPermissions

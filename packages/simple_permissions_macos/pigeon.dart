@@ -5,7 +5,7 @@ import 'package:pigeon/pigeon.dart';
 @ConfigurePigeon(
   PigeonOptions(
     dartOut: 'lib/src/generated/permissions_macos.g.dart',
-    swiftOut: 'macos/Classes/PermissionsMacos.g.swift',
+    swiftOut: 'macos/simple_permissions_macos/Sources/simple_permissions_macos/PermissionsMacos.g.swift',
     swiftOptions: SwiftOptions(),
   ),
 )

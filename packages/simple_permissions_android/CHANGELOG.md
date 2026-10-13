@@ -1,3 +1,8 @@
+## Unreleased
+
+- Updates the minimum supported SDK version to Flutter 3.44/Dart 3.12 (UNFY-173).
+- Migrates to built-in Kotlin; the plugin no longer applies the Kotlin Gradle Plugin (UNFY-173).
+
 ## 1.3.3
 
 - (no commits in packages/simple_permissions_android since simple_permissions_android-v1.3.2)
