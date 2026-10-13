@@ -4,6 +4,8 @@ publish_to: 'none'
 
 environment:
   sdk: ^3.7.2
+  # android.builtInKotlin=true (android/gradle.properties) needs Flutter 3.47.
+  flutter: '>=3.47.0'
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
