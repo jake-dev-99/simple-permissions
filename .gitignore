@@ -87,6 +87,11 @@ app.*.map.json
 **/ios/Flutter/flutter_export_environment.sh
 **/ios/ServiceDefinitions.json
 **/ios/Runner/GeneratedPluginRegistrant.*
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
 # macOS / Linux / Windows desktop generated plugin registrants
 # (auto-emitted by flutter pub get; never edited by hand).
 **/macos/Flutter/GeneratedPluginRegistrant.swift

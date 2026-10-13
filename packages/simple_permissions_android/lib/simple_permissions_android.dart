@@ -33,6 +33,10 @@ class SimplePermissionsAndroid extends SimplePermissionsPlatform {
     PermissionsApi? api,
     SdkVersionProvider? sdkVersionOverride,
   })  : _api = api ?? PigeonPermissionsApi(PermissionsHostApi()),
+        // Not `this._sdkVersionOverride`: older package:analyzer releases, still
+        // pinned by downstream code generators, reject Dart 3.12 private named
+        // parameters.
+        // ignore: prefer_initializing_formals
         _sdkVersionOverride = sdkVersionOverride;
 
   static void registerWith() {

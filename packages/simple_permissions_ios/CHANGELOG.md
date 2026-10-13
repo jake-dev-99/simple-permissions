@@ -1,3 +1,8 @@
+## Unreleased
+
+- Updates the minimum supported SDK version to Flutter 3.44/Dart 3.12 (UNFY-173).
+- Adds Swift Package Manager support; CocoaPods remains supported (UNFY-173).
+
 ## 1.3.3
 
 - (no commits in packages/simple_permissions_ios since simple_permissions_ios-v1.3.2)
