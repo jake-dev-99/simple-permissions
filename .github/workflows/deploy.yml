@@ -126,6 +126,7 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         if: startsWith(needs.resolve-tag.outputs.tag, format('{0}-v', matrix.package.name))
         with:
+          persist-credentials: false
           # Always check out the resolved tag (works for both push:tags
           # and workflow_dispatch event types).
           ref: ${{ needs.resolve-tag.outputs.ref }}
@@ -157,6 +158,8 @@ jobs:
         id: release-sdk
         env:
           INPUT_EVENT_NAME: ${{ github.event_name }}
+          INSPECT_TAG: ${{ needs.resolve-tag.outputs.tag }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           script=tool/release_toolchain.py
           mode=--deploy
@@ -169,7 +172,7 @@ jobs:
             mode=--inspect
           fi
           echo "RELEASE_TOOLCHAIN_SCRIPT=$script" >> "$GITHUB_ENV"
-          python3 "$script" "$mode" --source-root "$GITHUB_WORKSPACE"
+          python3 "$script" "$mode" --source-root "$PWD"
 
       - name: Install committed packaging SDK
         if: startsWith(needs.resolve-tag.outputs.tag, format('{0}-v', matrix.package.name))
@@ -180,7 +183,7 @@ jobs:
 
       - name: Verify installed packaging SDK
         if: startsWith(needs.resolve-tag.outputs.tag, format('{0}-v', matrix.package.name))
-        run: python3 "$RELEASE_TOOLCHAIN_SCRIPT" --verify --source-root "$GITHUB_WORKSPACE"
+        run: python3 "$RELEASE_TOOLCHAIN_SCRIPT" --verify --source-root "$PWD"
 
       - name: Verify pubspec version matches tag
         if: startsWith(needs.resolve-tag.outputs.tag, format('{0}-v', matrix.package.name))
