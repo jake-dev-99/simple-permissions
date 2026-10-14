@@ -1,4 +1,4 @@
-## Unreleased
+## 1.6.4
 
 - Require Flutter 3.44 / Dart 3.12, the floor of the platform packages'
   Swift Package Manager and built-in Kotlin support (UNFY-173).
@@ -8,6 +8,41 @@
   dependencies, including Android's native `PermissionGuards` API (UNFY-123).
 - Validate published dependencies before tagging and publish Flutter packages
   with normal validation and temporary OIDC credentials (UNFY-123).
+
+- ci(UNFY-197): fail the native gate if no unit tests ran; correct NDK comments
+- Merge origin/main into debt/unfy-197-native-unit-test-gate
+- fix(UNFY-173): keep explicit initializers for private fields
+- chore(UNFY-173): declare the example's Flutter 3.47 minimum
+- chore(UNFY-173): record the migration in changelogs; build the example
+- Merge remote-tracking branch 'origin/main' into claude/keen-fermi-n6kg9p
+- chore(UNFY-173): raise the facade's SDK floor to Flutter 3.44 / Dart 3.12
+- chore(UNFY-173): adopt Swift Package Manager and built-in Kotlin
+- chore(UNFY-197): bump example Android toolchain to Flutter stable minimums
+- fix(UNFY-345): scope release validation and route execution docs
+- fix(UNFY-345): preserve quota cooldowns and reject authored overrides
+- Reconcile cancelled deployments and verify complete release archives (UNFY-345)
+- Coordinate affected plugin releases and resume quota pauses (UNFY-345)
+- fix(UNFY-123): keep Flutter analyzer migration source clean
+- fix(UNFY-123): validate and release compatible permissions dependencies
+- chore(UNFY-271): gitignore .exec/ executor workdirs
+- chore(unfy-97): retire docs/adr + docs/runbooks trees
+- docs: address remaining PR #60 Sourcery comment
+- docs: address PR #60 review comments
+- docs: add Simple Zen standard scaffolding (AGENTS canonical + CLAUDE @import, adr/runbooks)
+- chore(release): cut 6 tags (patch bump)
+- chore(release): cut 6 tags (patch bump)
+- chore(release): reset versions to align with pub.dev
+- chore: gitignore + untrack desktop generated plugin registrants
+- chore(release): align federated packages on coordinated 1.8.0
+- Merge pull request #26 from jake-dev-99/release/1.8.0-rc.1
+- docs + chore: re-frame PermissionGuards as developer-facing; bump 1.8.0
+- test(ios): XCTest suite for PermissionGuards
+- fix(ci): auto-tag pushes via deploy key to satisfy main ruleset
+- Merge pull request #24 from jake-dev-99/release/1.7.0-rc.1
+- chore: bump to 1.7.0 + CHANGELOG entry
+- docs(integration): real iOS/macOS worked example using PermissionGuards
+- refactor(observer): use cleanup holder as finalizer detach token; unawaited close
+- Require simple_permissions_platform_interface ^1.3.4.
 
 ## 1.6.3
 

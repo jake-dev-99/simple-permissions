@@ -1,7 +1,24 @@
-## Unreleased
+## 1.3.4
 
 - Updates the minimum supported SDK version to Flutter 3.44/Dart 3.12 (UNFY-173).
 - Migrates to built-in Kotlin; the plugin no longer applies the Kotlin Gradle Plugin (UNFY-173).
+
+- fix(UNFY-173): keep explicit initializers for private fields
+- chore(UNFY-173): record the migration in changelogs; build the example
+- chore(UNFY-173): adopt Swift Package Manager and built-in Kotlin
+- fix(UNFY-123): keep Flutter analyzer migration source clean
+- chore(release): cut 6 tags (patch bump)
+- chore(release): cut 6 tags (patch bump)
+- chore(release): reset versions to align with pub.dev
+- chore(release): align federated packages on coordinated 1.8.0
+- feat(android): throw-if-missing assertions on PermissionGuards
+- chore(android): bump Kotlin 1.8.22 → 2.1.21
+- chore(android): gradle wrapper 8.11.1 → 8.13; pin example compileSdk to 36
+- chore(android): bump toolchain to Java 21 / compileSdk 36 / NDK r27 → r30
+- refactor(android): eager-initialize permission handler registry
+- chore(lints): elevate silent-bug lints to errors across packages
+- fix(android): return notAvailable for unresolvable VersionedPermission
+- Require simple_permissions_platform_interface ^1.3.4.
 
 ## 1.3.3
 

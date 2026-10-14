@@ -1,3 +1,17 @@
+## 1.3.4
+
+- fix(UNFY-123): keep Flutter analyzer migration source clean
+- chore(release): cut 6 tags (patch bump)
+- chore(release): cut 6 tags (patch bump)
+- chore(release): reset versions to align with pub.dev
+- chore(release): align federated packages on coordinated 1.8.0
+- docs(web): document observer refresh cadence on web
+- refactor(web): log swallowed browser API errors in debug mode
+- refactor(web): extract browser permission state strings to constants
+- chore(lints): elevate silent-bug lints to errors across packages
+- fix(web): harden geolocation request against double-settle
+- Require simple_permissions_platform_interface ^1.3.4.
+
 ## 1.3.3
 
 - (no commits in packages/simple_permissions_web since simple_permissions_web-v1.3.2)

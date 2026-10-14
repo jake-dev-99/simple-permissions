@@ -1,7 +1,23 @@
-## Unreleased
+## 1.3.4
 
 - Updates the minimum supported SDK version to Flutter 3.44/Dart 3.12 (UNFY-173).
 - Adds Swift Package Manager support; CocoaPods remains supported (UNFY-173).
+
+- chore(UNFY-173): record the migration in changelogs; build the example
+- chore(UNFY-173): adopt Swift Package Manager and built-in Kotlin
+- fix(UNFY-123): keep Flutter analyzer migration source clean
+- chore(release): cut 6 tags (patch bump)
+- chore(release): cut 6 tags (patch bump)
+- chore(release): reset versions to align with pub.dev
+- chore(release): align federated packages on coordinated 1.8.0
+- refactor(apple): consolidate handler mapping logic into PermissionGuards
+- docs + chore: re-frame PermissionGuards as developer-facing; bump 1.8.0
+- feat(apple): async requestAuthorization / requireAuthorizationGranted
+- feat(apple): Swift PermissionGrant enum + authorizationStatus(for:)
+- chore: bump to 1.7.0 + CHANGELOG entry
+- feat(macos): PermissionGuards Swift parity — 8-case subset of iOS
+- chore(lints): elevate silent-bug lints to errors across packages
+- Require simple_permissions_platform_interface ^1.3.4.
 
 ## 1.3.3
 
