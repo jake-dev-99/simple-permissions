@@ -90,6 +90,7 @@ jobs:
       PUB_MAX_HTTP_RETRIES: '1'
     needs: resolve-tag
     permissions:
+      actions: read  # source-matched original Deploy metadata/logs for inspection
       # `id-token: write` for pub.dev OIDC. `contents: read` so
       # actions/checkout can fetch the tagged ref (job-level
       # permissions override the workflow default; the read needs
