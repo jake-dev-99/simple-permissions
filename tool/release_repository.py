@@ -40,6 +40,9 @@ class Repository:
         self.root = Path(root).resolve()
         self.flutter = flutter
         self.validation_timeout = validation_timeout
+        self._sdk_identities = {}
+        self._packaging_flutter = flutter
+        self._preview_sdk_context = None
         self.env = {**os.environ, **(env or {}), 'PUB_MAX_HTTP_RETRIES': '1'}
 
     def git(self, *args, input=None, env=None, check=True):
@@ -193,7 +196,137 @@ class Repository:
                             continue
                     raise Blocked(f'{name} external dependency must resolve from pub.dev or a supported SDK')
 
+    # Purpose: Verify the actual SDK instead of trusting a mutable channel label.
+    # /**
+    #  * @param self The repository with explicitly configured SDK executables.
+    #  * @param binary The exact executable, or the current workflow SDK.
+    #  * @returns The installed stable version and full framework revision.
+    #  * @throws Blocked for an unusable, malformed or experimental SDK.
+    #  */
+    def installed_sdk(self, binary=None):
+        from release_toolchain import inspect_sdk
+        executable = binary or self.flutter
+        if executable not in self._sdk_identities:
+            self._sdk_identities[executable] = inspect_sdk({'binary': executable,
+                                                         'directory': self.root, 'env': self.env})
+        return self._sdk_identities[executable]
+
+    # Purpose: Verify the SDK authorization made before the mutable journal exists.
+    # /**
+    #  * @param self The repository with its fetched immutable intent tags.
+    #  * @param plan The expected batch identifier and frozen source commit.
+    #  * @returns The exact SDK identity recorded in the original intent tag.
+    #  * @throws Blocked when intent metadata or its source identity cannot be proven.
+    #  */
+    def intent_sdk(self, plan):
+        from release_toolchain import validate_sdk
+        tag = plan['batch_tag']
+        raw = self.git('for-each-ref', '--format=%(contents)', 'refs/tags/' + tag)
+        try:
+            intent = json.loads(raw)
+            if not isinstance(intent, dict):
+                raise Blocked('Immutable SDK intent must be a JSON object')
+            tagged = self.git('rev-parse', tag + '^{commit}')
+            if (intent.get('batch_tag') != tag or intent.get('source_sha') != plan['source_sha']
+                    or tagged != plan['source_sha']):
+                raise Blocked('SDK intent tag differs from frozen source identity')
+            return validate_sdk(intent['packaging_sdk'])
+        except (ValueError, KeyError, TypeError) as error:
+            raise Blocked('Immutable SDK intent is missing or malformed') from error
+
+    # Purpose: Read committed SDK evidence, recreating an interrupted local checkpoint exactly.
+    # /**
+    #  * @param self The repository containing immutable prepared commits.
+    #  * @param plan The source-bound release plan with an optional prepared SHA.
+    #  * @returns The committed SDK identity, or None for pre-pin historical source.
+    #  * @throws Blocked when source recreation differs from its SHA/intent or the pin is malformed.
+    #  */
+    def prepared_sdk(self, plan):
+        from release_toolchain import SDK_FILE, decode_sdk, validate_sdk
+        if not plan.get('prepared_sha'):
+            return None
+        missing = self.git('cat-file', '-e', plan['prepared_sha'] + '^{commit}', check=False)
+        if missing.returncode:
+            if self.intent_sdk(plan) != validate_sdk(plan.get('packaging_sdk')):
+                raise Blocked('Missing prepared commit SDK differs from immutable intent')
+            self.prepare(plan)  # verifies recreated SHA before any source/SDK use
+        pin = self.git('show', plan['prepared_sha'] + ':' + SDK_FILE, check=False)
+        return decode_sdk(pin.stdout) if pin.returncode == 0 else None
+
+    # Purpose: Authorize only a newly constructed read-only preview before an intent exists.
+    # /**
+    #  * @param self The repository executing a dry-run cut with no release writes.
+    #  * @param plan The locally constructed source, batch and installed SDK identity.
+    #  * @returns None; records isolated preview evidence outside the mutable journal.
+    #  * @throws Blocked when the fresh preview SDK identity is invalid.
+    #  */
+    def authorize_preview(self, plan):
+        from release_toolchain import validate_sdk
+        self._preview_sdk_context = {key: plan[key] for key in ['batch_tag', 'source_sha']}
+        self._preview_sdk_context['sdk'] = validate_sdk(plan['packaging_sdk'])
+
+    # Purpose: Bind recovery to committed SDK source and planning to immutable intent.
+    # /**
+    #  * @param self The repository and trusted workflow SDK context.
+    #  * @param plan The exact frozen source, prepared SHA and release files.
+    #  * @returns The independently source-bound SDK identity.
+    #  * @throws Blocked if journal metadata differs from committed or original-run evidence.
+    #  */
+    def expected_sdk(self, plan):
+        from release_toolchain import SDK_FILE, decode_sdk, validate_sdk
+        recorded = validate_sdk(plan['packaging_sdk']) if 'packaging_sdk' in plan else None
+        committed = self.prepared_sdk(plan)
+        journal_pin = plan.get('files', {}).get(SDK_FILE)
+        if committed is not None:
+            if recorded != committed or journal_pin is None or decode_sdk(journal_pin) != committed:
+                raise Blocked('Frozen SDK journal differs from committed prepared source')
+            return committed
+        if plan.get('prepared_sha') and journal_pin is not None:
+            raise Blocked('Frozen SDK journal pin is absent from committed prepared source')
+        if recorded is not None and not plan.get('prepared_sha'):
+            preview = self._preview_sdk_context
+            bound = (preview is not None and all(preview.get(key) == plan.get(key)
+                     for key in ['batch_tag', 'source_sha']))
+            intended = preview['sdk'] if bound else self.intent_sdk(plan)
+            if recorded != intended or (journal_pin is not None and decode_sdk(journal_pin) != intended):
+                raise Blocked('Journal SDK differs from immutable batch intent')
+            return intended
+        context = json.loads(self.env.get('RELEASE_BATCH_SDK_CONTEXT', '{}'))
+        if context:
+            keys = ['batch_tag', 'source_sha', 'prepared_sha']
+            if any(context.get(key) != plan.get(key) for key in keys):
+                raise Blocked('Workflow SDK proof belongs to another frozen batch')
+            proven = validate_sdk(context['sdk'])
+            if recorded is not None and recorded != proven:
+                raise Blocked('Recorded SDK differs from original Deploy evidence')
+            return proven
+        pin = self.git('show', plan['source_sha'] + ':' + SDK_FILE, check=False)
+        if pin.returncode == 0 and recorded is None:
+            return decode_sdk(pin.stdout)
+        raise Blocked('Frozen batch has no packaging SDK proof; resolve original Deploy evidence first')
+
+    # Purpose: Select only a binary matching the frozen SDK, including prior batches.
+    # /**
+    #  * @param self The repository with current and optional prior-batch SDK paths.
+    #  * @param plan The source-bound release identity.
+    #  * @returns The executable with exactly the expected version and revision.
+    #  * @throws Blocked when configured SDKs cannot reproduce the frozen identity.
+    #  */
+    def sdk_flutter(self, plan):
+        expected = self.expected_sdk(plan)
+        executables = [self.flutter]
+        batch_binary = self.env.get('RELEASE_BATCH_FLUTTER')
+        if batch_binary and batch_binary not in executables:
+            executables.append(batch_binary)
+        for executable in executables:
+            if self.installed_sdk(executable) == expected:
+                self._packaging_flutter = executable
+                plan['packaging_sdk'] = expected
+                return executable
+        raise Blocked('Installed SDK does not match frozen packaging version and revision')
+
     def validate(self, plan, package=None, *, linked=False):
+        self.sdk_flutter(plan)
         packages = [package] if package else plan['packages']
         with self.snapshot(plan) as root:
             for current in packages:
@@ -259,6 +392,7 @@ class Repository:
     def frozen_archive_fingerprint(self, plan, package):
         # Example resolution and tests may generate files in their own sandbox.
         # Package a separate clean snapshot using the same preparation as Deploy.
+        self.sdk_flutter(plan)
         with self.snapshot(plan) as root, tempfile.TemporaryDirectory(prefix='release-artifact-') as temp:
             directory = root / package['path']
             self.validate_sources(root, directory, plan)
@@ -274,7 +408,7 @@ class Repository:
     def run_flutter(self, command, cwd, name):
         """Run one validation command; a hung SDK blocks the batch for attention."""
         try:
-            return subprocess.run([self.flutter, *command], cwd=cwd, env=self.env, text=True,
+            return subprocess.run([self._packaging_flutter, *command], cwd=cwd, env=self.env, text=True,
                                   capture_output=True, timeout=self.validation_timeout)
         except subprocess.TimeoutExpired as error:
             raise Blocked(f'{name} validation timed out after {self.validation_timeout}s: '
@@ -290,7 +424,9 @@ class Repository:
             raise Blocked('Published artifact archive checksum is missing or different')
         if not package.get('artifact_fingerprint'):
             self.validate(plan, package, linked=False)
-        expected = self.frozen_archive_fingerprint(plan, package)
+            expected = package['artifact_fingerprint']
+        else:
+            expected = self.frozen_archive_fingerprint(plan, package)
         if archive_fingerprint(raw) != expected:
             raise Blocked(f'Published artifact for {package["name"]} does not match frozen source')
         # This is derived evidence, never the authority for frozen source identity.
