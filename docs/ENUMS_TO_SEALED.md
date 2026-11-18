@@ -256,8 +256,8 @@ File: pigeon.dart
 ```dart
 @HostApi()
 abstract class PermissionsIosHostApi {
-  @async String checkPermission(String identifier);
-  @async String requestPermission(String identifier);
+  @asyncCallback String checkPermission(String identifier);
+  @asyncCallback String requestPermission(String identifier);
   bool isSupported(String identifier);
   bool openAppSettings();
 }
