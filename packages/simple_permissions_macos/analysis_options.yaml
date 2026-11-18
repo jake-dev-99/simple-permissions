@@ -22,4 +22,3 @@ linter:
     - close_sinks
     - test_types_in_equals
     - throw_in_finally
-    - unnecessary_await_in_return

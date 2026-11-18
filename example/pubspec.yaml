@@ -3,9 +3,9 @@ description: "Demonstrates how to use the simple_permissions plugin."
 publish_to: 'none'
 
 environment:
-  sdk: ^3.7.2
+  sdk: ^3.13.0
   # android.builtInKotlin=true (android/gradle.properties) needs Flutter 3.47.
-  flutter: '>=3.47.0'
+  flutter: '>=3.47.7'
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -19,12 +19,13 @@ dependencies:
   simple_permissions_native:
     path: ../
   cupertino_icons: ^1.0.8
+  material_ui: 1.11.1
 
 dev_dependencies:
   integration_test:
     sdk: flutter
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: 6.0.0
 flutter:
   uses-material-design: true

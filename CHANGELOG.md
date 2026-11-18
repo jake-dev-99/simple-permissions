@@ -1,3 +1,7 @@
+## Unreleased
+
+- **Breaking:** Requires Flutter 3.47.7 / Dart 3.13. Release as a major version (UNFY-409).
+
 ## 1.6.4
 
 - Require Flutter 3.44 / Dart 3.12, the floor of the platform packages'

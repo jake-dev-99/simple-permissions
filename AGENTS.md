@@ -46,6 +46,12 @@ flutter test
 flutter pub publish --dry-run     # packaging must stay publishable
 ```
 
+Every package and the example commits its `pubspec.lock` (CQS-DEP-02),
+resolved through the tracked `pubspec_overrides.yaml` links, as CI resolves it. When `flutter pub get`
+or `flutter pub upgrade` changes a lockfile, including after a release
+changes the linked package versions, commit it. pub leaves `pubspec.lock`
+out of published packages.
+
 Run them in each package you touched (the facade + the platform impls the
 change affects), as CI does.
 

@@ -1,3 +1,8 @@
+## Unreleased
+
+- **Breaking:** Requires Flutter 3.47.7 / Dart 3.13. Release as a major version (UNFY-409).
+- Regenerates the platform channel code with Pigeon 30 (UNFY-409).
+
 ## 1.3.4
 
 - Updates the minimum supported SDK version to Flutter 3.44/Dart 3.12 (UNFY-173).
