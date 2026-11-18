@@ -19,8 +19,8 @@ dependencies:
   simple_permissions_native:
     path: ../
   cupertino_icons: ^1.0.8
-
   material_ui: 1.11.1
+
 dev_dependencies:
   integration_test:
     sdk: flutter
