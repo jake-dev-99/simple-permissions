@@ -16,41 +16,41 @@ import 'package:pigeon/pigeon.dart';
 abstract class PermissionsHostApi {
   Map<String, bool> checkPermissions(List<String> permissions);
 
-  @async
+  @asyncCallback
   Map<String, bool> requestPermissions(List<String> permissions);
 
   bool isRoleHeld(String roleId);
 
-  @async
+  @asyncCallback
   bool requestRole(String roleId);
 
   bool isIgnoringBatteryOptimizations();
 
-  @async
+  @asyncCallback
   bool requestIgnoreBatteryOptimizations();
 
   /// Whether the host can schedule exact alarms (API 31+).
   bool canScheduleExactAlarms();
 
-  @async
+  @asyncCallback
   bool requestScheduleExactAlarms();
 
   /// Whether the host may install packages from unknown sources (API 26+).
   bool canRequestInstallPackages();
 
-  @async
+  @asyncCallback
   bool requestInstallPackages();
 
   /// Whether the host can draw overlays on top of other apps (API 23+).
   bool canDrawOverlays();
 
-  @async
+  @asyncCallback
   bool requestDrawOverlays();
 
   /// Whether the host has MANAGE_EXTERNAL_STORAGE access (API 30+).
   bool canManageExternalStorage();
 
-  @async
+  @asyncCallback
   bool requestManageExternalStorage();
 
   Map<String, bool> shouldShowRequestPermissionRationale(

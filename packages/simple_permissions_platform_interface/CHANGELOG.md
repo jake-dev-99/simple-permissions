@@ -1,3 +1,7 @@
+## Unreleased
+
+- Updates the minimum supported SDK version to Flutter 3.47.7/Dart 3.13 (UNFY-409).
+
 ## 1.3.4
 
 - fix(UNFY-123): keep Flutter analyzer migration source clean

@@ -21,23 +21,23 @@ abstract class PermissionsIosHostApi {
   ///
   /// Returns a wire string: "granted", "denied", "permanentlyDenied",
   /// "restricted", "limited", "notApplicable", "notAvailable", "provisional".
-  @async
+  @asyncCallback
   String checkPermission(String identifier);
 
   /// Request authorization for a permission.
   ///
   /// Returns a wire string with the same values as [checkPermission].
-  @async
+  @asyncCallback
   String requestPermission(String identifier);
 
   /// Whether the given permission identifier is supported on this device/OS version.
   bool isSupported(String identifier);
 
   /// Open this app's settings page in the Settings app.
-  @async
+  @asyncCallback
   bool openAppSettings();
 
   /// Check location accuracy ("precise", "reduced", "none", "notAvailable").
-  @async
+  @asyncCallback
   String checkLocationAccuracy();
 }
